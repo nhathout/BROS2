@@ -1,0 +1,55 @@
+{
+  "name": "bros",
+  "private": true,
+  "version": "0.1.0",
+  "description": "BROS — Block ROS (Drag. Drop. Deploy.)",
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "packages/*/*"
+  ],
+  "license": "Apache-2.0",
+  "packageManager": "pnpm@10.17.1",
+  "engines": {
+    "node": "20.19.x",
+    "pnpm": "10.x"
+  },
+  "engineStrict": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nhathout/BROS.git"
+  },
+  "bugs": {
+    "url": "https://github.com/nhathout/BROS/issues"
+  },
+  "homepage": "https://github.com/nhathout/BROS#readme",
+  "scripts": {
+    "bootstrap": "pnpm install -r",
+    "preinstall": "node -e \"const semver=require('semver'); if(!semver.satisfies(process.version, '20.19.x')) { console.error('\\n Wrong Node version: ' + process.version + '. Please run \\'nvm use\\'.\\n'); process.exit(1); }\"",
+    "build": "pnpm -r --filter @bros/runner build",
+    "dev": "pnpm --filter ./apps/desktop-app dev",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "clean": "pnpm -r clean",
+    "format": "pnpm -r format",
+    "typecheck": "pnpm -r typecheck",
+    "ci": "pnpm install --frozen-lockfile && pnpm -r test"
+  },
+  "devDependencies": {
+    "@types/dockerode": "^3.3.44",
+    "@types/keytar": "^4.4.2",
+    "@types/node": "^24.7.0",
+    "@types/node-fetch": "^2.6.13",
+    "rimraf": "^6.0.1",
+    "semver": "^7.7.2",
+    "typescript": "^5.9.2",
+    "vitest": "^2.1.9"
+  },
+  "dependencies": {
+    "dockerode": "^4.0.9",
+    "execa": "^9.6.0",
+    "keytar": "^7.9.0",
+    "node-fetch": "^3.3.2",
+    "zod": "^3.25.76"
+  }
+}

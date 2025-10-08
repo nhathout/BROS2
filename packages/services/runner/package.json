@@ -1,0 +1,31 @@
+{
+  "name": "@bros/runner",
+  "version": "0.1.0",
+  "description": "Docker Compose ROS 2 environment runner for BROS.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "pnpm clean && tsc -b",
+    "clean": "rimraf dist tsconfig.tsbuildinfo",
+    "dev": "tsc -p tsconfig.json --watch"
+  },
+  "dependencies": {
+    "dockerode": "^4.0.2",
+    "execa": "^9.4.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2",
+    "@types/node": "^24.5.2",
+    "@types/dockerode": "^3.3.24",
+    "rimraf": "^6.0.1"
+  }
+}

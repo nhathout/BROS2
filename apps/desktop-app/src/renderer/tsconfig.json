@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.renderer.json",
+  "compilerOptions": {
+    "baseUrl": "../..",
+    "paths": {
+      "@/*": ["apps/desktop-app/src/renderer/*"]
+    }
+  },
+  "include": [
+    "src/renderer/**/*",
+    "../types/**/*"
+  ]
+}

@@ -1,0 +1,274 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  overflow: hidden; /* optional, prevents scrollbars */
+  font-family: "Manrope", sans-serif;  /* ← pick your font here */
+}
+
+/* Container */
+.login-container {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  position: relative;    /* ensures overlay works */
+  z-index: 1;
+}
+
+/* Left section with GIF */
+.left-section {
+  flex: 2;               /* take most of screen */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-left: 60px;    /* push text away from edge */
+  color: white;
+}
+
+.right-section {
+  flex: 1;               
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  opacity: 0.9;
+  padding-right: 50px; 
+  padding-left: 50px; 
+  padding-top: 50px;
+  padding-bottom: 50px;
+}
+
+
+.right-section .login-box h2,
+.right-section .login-box p {
+  color: #000; /* make text black */
+}
+
+.background-video {
+  position: fixed;       /* stays behind everything */
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;     /* ensures it fills the screen */
+  z-index: -1;           /* push it behind */
+  opacity: 0.95;
+}
+
+/* Overlay text */
+.overlay {
+  position: relative;
+  z-index: 2;
+  text-align: left;
+  padding: 3rem;
+  max-width: 10000px;
+  transition: opacity 0.5s ease;
+}
+
+.overlay h1 {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+  color: #faaF00;
+}
+
+.overlay p {
+  font-size: 1.2rem;
+  line-height: 1.6;
+  color: #e6e6e6;
+}
+
+/* Continue Button */
+.continue-btn {
+  margin-top: 1.5rem;
+  background: rgba(250, 175, 0, 0.3);
+  border: 2px solid #faaF00;
+  border-radius: 50px;         /* makes it rounded */
+  padding: 0.6rem 1.5rem;
+  font-size: 1rem;
+  font-weight: bold;
+  color: #faaF00;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.continue-btn:hover {
+  background: #faaF00;
+  color: #fff;
+  transform: translateY(-2px);
+}
+
+
+/* Dots navigation */
+.dots {
+  position: absolute;
+  bottom: 2rem;
+  left: 3rem;
+  display: flex;
+  gap: 0.5rem;
+  z-index: 2;
+}
+
+.dot {
+  width: 12px;
+  height: 12px;
+  background: #aaa;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.dot.active {
+  background: #faaF00;
+}
+
+
+.login-title {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+  color: #faaF00;
+}
+
+.login-subtitle {
+  font-size: 0.9rem;
+  color: #777;
+  margin-bottom: 2rem;
+}
+
+
+
+.login-btn {
+  background: #faaF00;
+  border: none;
+  color: white;
+  font-size: 1rem;
+  font-weight: bold;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background 0.3s;
+  width: 100%;
+}
+
+.login-btn:hover {
+  background: #faaF00;
+}
+
+.fade-in {
+  opacity: 0;
+  animation: fadeIn 1.2s ease forwards;
+}
+
+@keyframes fadeIn {
+  to {
+    opacity: 1;
+  }
+}
+.fade-out {
+  opacity: 1;
+  animation: fadeOut 1.2s ease forwards;
+}
+
+.login-box {
+  background: #fcfcfc;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+  width: 100%;
+  max-width: 380px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin: auto;
+
+}
+
+.login-box label {
+  font-size: 0.85rem;
+  margin-bottom: 0.25rem;
+}
+
+.login-box input[type="email"],
+.login-box input[type="password"] {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+}
+
+.login-options {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.login-btn {
+  background: linear-gradient(to right, #4a3aff, #007bff);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.75rem;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+/* Header info */ 
+
+.register-text {
+  text-align: center;
+  font-size: 0.85rem;
+  margin-top: 1rem;
+}
+
+.app-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  padding: 12px 24px;   /* 👈 padding from edges */
+  z-index: 2000;
+  background: transparent; /* so video shows behind */
+}
+
+.app-header .brand {
+  font-weight: bold;
+  font-size: 1.5rem;
+  color: white; /* use #FAAF00 if you want orange */
+}
+
+.page-enter {
+  opacity: 0;
+}
+.page-enter-active {
+  opacity: 1;
+  transition: opacity 500ms ease-in;
+}
+
+.page-exit {
+  opacity: 1;
+}
+.page-exit-active {
+  opacity: 0;
+  transition: opacity 500ms ease-out;
+}
+
+.blinkingCursor {
+  animation: blink 1s infinite;
+}
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+.fade-title {
+  opacity: 1;
+  transition: opacity 0.4s ease-in-out;
+}
+
+.fade-title.out {
+  opacity: 0;
+}

@@ -1,0 +1,47 @@
+{
+  "name": "@bros/shared",
+  "version": "0.1.0",
+  "description": "Shared types and utilities for BROS",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./ir": {
+      "types": "./dist/ir/graph.d.ts",
+      "import": "./dist/ir/graph.js",
+      "default": "./dist/ir/graph.js"
+    },
+    "./ir/merge": {
+      "types": "./dist/ir/merge.d.ts",
+      "import": "./dist/ir/merge.js",
+      "default": "./dist/ir/merge.js"
+    },
+    "./ir/schema": {
+      "types": "./dist/ir/schema.zod.d.ts",
+      "import": "./dist/ir/schema.zod.js",
+      "default": "./dist/ir/schema.zod.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "rimraf dist tsconfig.tsbuildinfo",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2",
+    "@types/node": "^24.5.2",
+    "vitest": "^2.1.4",
+    "rimraf": "^6.0.1"
+  }
+}

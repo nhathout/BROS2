@@ -1,0 +1,99 @@
+/* auth.css */
+.auth-page {
+  min-height: 100vh;
+  width: 100vw;
+  background: radial-gradient(1200px 600px at 70% 30%, rgba(250,175,0,0.15), transparent 60%),
+              #0c0c0c;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.auth-card {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+  backdrop-filter: blur(12px);
+  border-radius: 20px;
+  padding: 28px;
+  width: min(92vw, 420px);
+  color: #eaeaea;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.auth-card input {
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(0,0,0,0.35);
+  color: #fff;
+}
+
+.login-btn {
+  margin-top: 6px;
+  background: linear-gradient(90deg, #FAAF00, #f7b823);
+  color: #141414;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.social-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.social-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255,255,255,0.2);
+  background: rgba(0,0,0,0.35);
+  color: #fff;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+.social-icon:hover {
+  background: #faaF00;
+  color: #fff;
+}
+
+
+.social-icon:hover {
+  background: #faaF00;
+  color: #fff;
+}
+
+.divider {
+  position: relative;
+  text-align: center;
+  color: #aaa;
+  font-size: 0.85rem;
+  margin: 1.5rem 0;
+}
+
+.divider::before,
+.divider::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 35%;
+  height: 1px;
+  background: #ddd;
+}
+
+.divider::before {
+  left: 0;
+}
+
+.divider::after {
+  right: 0;
+}
+

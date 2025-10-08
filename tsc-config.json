@@ -1,0 +1,54 @@
+{
+    "compilerOptions": {
+        "target": "es2022",
+        "module": "esnext",
+        "moduleResolution": "bundler",
+        "jsx": "react-jsx",
+        "strict": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "baseUrl": "../..",
+        "paths": {
+            "@/*": [
+                "apps/desktop-app/src/renderer/*"
+            ]
+        },
+        "composite": true,
+        "lib": [
+            "es2022",
+            "dom"
+        ],
+        "types": [
+            "node"
+        ],
+        "allowSyntheticDefaultImports": true,
+        "resolvePackageJsonExports": true,
+        "resolvePackageJsonImports": true,
+        "resolveJsonModule": true,
+        "declaration": true,
+        "incremental": true,
+        "useDefineForClassFields": true,
+        "noImplicitAny": true,
+        "noImplicitThis": true,
+        "strictNullChecks": true,
+        "strictFunctionTypes": true,
+        "strictBindCallApply": true,
+        "strictPropertyInitialization": true,
+        "strictBuiltinIteratorReturn": true,
+        "alwaysStrict": true,
+        "useUnknownInCatchVariables": true
+    },
+    "files": [
+        "../types/global.d.ts"
+    ],
+    "include": [
+        "src/renderer/**/*",
+        "../types/**/*"
+    ],
+    "exclude": [
+        "../../../../node_modules",
+        "../../../../dist",
+        "../../../../build"
+    ]
+}

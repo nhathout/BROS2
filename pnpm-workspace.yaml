@@ -1,0 +1,11 @@
+packages:
+  - apps/*
+  - packages/*
+  - packages/*/*
+  - tools/*
+
+ignoredBuiltDependencies:
+  - electron
+
+neverBuiltDependencies:
+  - electron

@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "jsx": "react-jsx",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
+    "paths": {
+      "@bros/shared": ["packages/shared/src/index.ts"],
+      "@bros/shared/*": ["packages/shared/src/*"],
+      "@bros/ui": ["packages/ui/src/index.ts"],
+      "@bros/ui/*": ["packages/ui/src/*"],
+      "@bros/validation": ["packages/services/validation/src/index.ts"],
+      "@bros/validation/*": ["packages/services/validation/src/*"],
+      "@bros/runner": ["packages/services/runner/src/index.ts"],
+      "@bros/runner/*": ["packages/services/runner/src/*"],
+      "@/*": ["apps/desktop-app/src/renderer/*"]
+    }
+  },
+  "include": ["apps", "packages", "tools"],
+  "exclude": ["node_modules", "dist", "build"]
+}
