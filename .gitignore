@@ -23,7 +23,7 @@ Thumbs.db
 .idea/
 
 # Generated
-# pnpm-lock.yaml
+pnpm-lock.yaml
 
 # Secrets / environment
 .env
