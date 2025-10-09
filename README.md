@@ -1,12 +1,12 @@
 <p align="center">
-  <img src="assets/logos/BROS2-logo-long.png" alt="BROS logo" width="660">
+  <img src="assets/logos/BROS2-logo-long.png" alt="BROS2 logo" width="440">
 </p>
 
 BROS2 (Block ROS2) is an Electron desktop environment for building, simulating, and introspecting ROS2 graphs with a drag-and-drop block interface. It streamlines going from idea to runnable robot behavior by generating ROS packages, launch files, and providing live insight into running nodes.
 
 Basically, BROS2 (Block ROS2) is an Electron desktop app that lets you assemble ROS2 graphs visually and run them through a managed Docker workspace 🦾🤖
 
-## Why BROS?
+## Why BROS2?
 - Visual composition of ROS 2 nodes, topics, and services without leaving the editor.
 - Automatic generation of package scaffolding and launch files from the block graph.
 - Integrated simulation hooks (Gazebo, Isaac) and telemetry panels for rapid iteration.
