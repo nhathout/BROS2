@@ -1,4 +1,4 @@
-<p align="center">
+<p align="left">
   <img src="assets/logos/BROS2-logo-long.png" alt="BROS2 logo" width="440">
 </p>
 
