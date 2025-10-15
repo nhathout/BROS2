@@ -1,7 +1,7 @@
 services:
-  bros_helloros:
+  bros2_helloros:
     image: ros:humble
-    container_name: bros_helloros
+    container_name: bros2_helloros
     command: bash -lc "sleep infinity"
     working_dir: /workspace
     tty: true

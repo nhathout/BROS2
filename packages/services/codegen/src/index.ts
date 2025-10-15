@@ -47,7 +47,7 @@ export async function generateWorkspaceFromIR(ir: IR, opts: CodegenOptions) {
 
   // Generate a top-level launch file that launches all nodes
   const launchOut = await renderTemplateJinja2(tpl("main.launch.py.j2"), { entries: launchEntries });
-  const launchPkg = ensureCommonLaunchPackage(srcRoot);  // place launch under a "bros_launch" package
+  const launchPkg = ensureCommonLaunchPackage(srcRoot);  // place launch under a "bros2_launch" package
   const launchPath = path.join(launchPkg.pkgDir, "launch", "main.launch.py");
   await fs.ensureDir(path.dirname(launchPath));
   await fs.writeFile(launchPath, launchOut, "utf8");
@@ -182,9 +182,9 @@ if __name__ == "__main__":
   return entries;
 }
 
-/** Ensure a tiny "bros_launch" package exists to host the unified main.launch.py */
+/** Ensure a tiny "bros2_launch" package exists to host the unified main.launch.py */
 function ensureCommonLaunchPackage(srcRoot: string) {
-  const pkgName = "bros_launch";
+  const pkgName = "bros2_launch";
   const pkgDir = path.join(srcRoot, pkgName);
   const modDir = path.join(pkgDir, pkgName);
   fs.ensureDirSync(path.join(pkgDir, "launch"));

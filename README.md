@@ -81,7 +81,7 @@ await window.runner.exec("ros2 pkg list | head -n 5");
 await window.runner.down();
 ```
 
-This spins up the `bros_hello_ros` container defined in `Projects/hello_ros` and exercises the ROS 2 CLI.
+This spins up the `bros2_hello_ros` container defined in `Projects/hello_ros` and exercises the ROS 2 CLI.
 
 ### IR build + validation example
 

@@ -41,7 +41,7 @@ export class Runner {
     this.projectId = sanitizeProjectId(options.projectName);
     this.workspaceHostPath = path.resolve(options.workspaceHostPath);
     this.image = options.image ?? DEFAULT_IMAGE;
-    this.containerName = `bros_${this.projectId}`;
+    this.containerName = `bros2_${this.projectId}`;
     this.composeFilePath = path.join(path.dirname(this.workspaceHostPath), "docker-compose.yml");
   }
 
