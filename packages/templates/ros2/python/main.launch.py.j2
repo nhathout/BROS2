@@ -1,0 +1,17 @@
+from launch import LaunchDescription
+from launch_ros.actions import Node
+
+def generate_launch_description():
+    ld = LaunchDescription()
+{% for e in entries %}
+    ld.add_action(Node(
+        package="{{ e.pkg }}",
+        executable="{{ e.exec }}",
+        name="{{ e.exec }}",
+{% if e.ns %}
+        namespace="{{ e.ns }}",
+{% endif %}
+        output="screen"
+    ))
+{% endfor %}
+    return ld
