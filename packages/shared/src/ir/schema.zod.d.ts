@@ -3,12 +3,12 @@ export declare const LangSchema: z.ZodEnum<["python", "cpp"]>;
 export declare const TopicRefSchema: z.ZodObject<{
     topic: z.ZodString;
     type: z.ZodString;
-}, "strip", z.ZodTypeAny, {
-    type: string;
+}, "strict", z.ZodTypeAny, {
     topic: string;
+    type: string;
 }, {
-    type: string;
     topic: string;
+    type: string;
 }>;
 export declare const NodeSchema: z.ZodObject<{
     id: z.ZodString;
@@ -21,24 +21,24 @@ export declare const NodeSchema: z.ZodObject<{
     pubs: z.ZodOptional<z.ZodArray<z.ZodObject<{
         topic: z.ZodString;
         type: z.ZodString;
-    }, "strip", z.ZodTypeAny, {
-        type: string;
+    }, "strict", z.ZodTypeAny, {
         topic: string;
+        type: string;
     }, {
-        type: string;
         topic: string;
+        type: string;
     }>, "many">>;
     subs: z.ZodOptional<z.ZodArray<z.ZodObject<{
         topic: z.ZodString;
         type: z.ZodString;
-    }, "strip", z.ZodTypeAny, {
-        type: string;
+    }, "strict", z.ZodTypeAny, {
         topic: string;
+        type: string;
     }, {
-        type: string;
         topic: string;
+        type: string;
     }>, "many">>;
-}, "strip", z.ZodTypeAny, {
+}, "strict", z.ZodTypeAny, {
     lang: "python" | "cpp";
     package: string;
     name: string;
@@ -47,12 +47,12 @@ export declare const NodeSchema: z.ZodObject<{
     namespace?: string | undefined;
     params?: Record<string, unknown> | undefined;
     pubs?: {
-        type: string;
         topic: string;
+        type: string;
     }[] | undefined;
     subs?: {
-        type: string;
         topic: string;
+        type: string;
     }[] | undefined;
 }, {
     lang: "python" | "cpp";
@@ -63,12 +63,12 @@ export declare const NodeSchema: z.ZodObject<{
     namespace?: string | undefined;
     params?: Record<string, unknown> | undefined;
     pubs?: {
-        type: string;
         topic: string;
+        type: string;
     }[] | undefined;
     subs?: {
-        type: string;
         topic: string;
+        type: string;
     }[] | undefined;
 }>;
 export declare const PackageSchema: z.ZodObject<{
@@ -85,24 +85,24 @@ export declare const PackageSchema: z.ZodObject<{
         pubs: z.ZodOptional<z.ZodArray<z.ZodObject<{
             topic: z.ZodString;
             type: z.ZodString;
-        }, "strip", z.ZodTypeAny, {
-            type: string;
+        }, "strict", z.ZodTypeAny, {
             topic: string;
+            type: string;
         }, {
-            type: string;
             topic: string;
+            type: string;
         }>, "many">>;
         subs: z.ZodOptional<z.ZodArray<z.ZodObject<{
             topic: z.ZodString;
             type: z.ZodString;
-        }, "strip", z.ZodTypeAny, {
-            type: string;
+        }, "strict", z.ZodTypeAny, {
             topic: string;
+            type: string;
         }, {
-            type: string;
             topic: string;
+            type: string;
         }>, "many">>;
-    }, "strip", z.ZodTypeAny, {
+    }, "strict", z.ZodTypeAny, {
         lang: "python" | "cpp";
         package: string;
         name: string;
@@ -111,12 +111,12 @@ export declare const PackageSchema: z.ZodObject<{
         namespace?: string | undefined;
         params?: Record<string, unknown> | undefined;
         pubs?: {
-            type: string;
             topic: string;
+            type: string;
         }[] | undefined;
         subs?: {
-            type: string;
             topic: string;
+            type: string;
         }[] | undefined;
     }, {
         lang: "python" | "cpp";
@@ -127,15 +127,15 @@ export declare const PackageSchema: z.ZodObject<{
         namespace?: string | undefined;
         params?: Record<string, unknown> | undefined;
         pubs?: {
-            type: string;
             topic: string;
+            type: string;
         }[] | undefined;
         subs?: {
-            type: string;
             topic: string;
+            type: string;
         }[] | undefined;
     }>, "many">;
-}, "strip", z.ZodTypeAny, {
+}, "strict", z.ZodTypeAny, {
     lang: "python" | "cpp";
     name: string;
     nodes: {
@@ -147,12 +147,12 @@ export declare const PackageSchema: z.ZodObject<{
         namespace?: string | undefined;
         params?: Record<string, unknown> | undefined;
         pubs?: {
-            type: string;
             topic: string;
+            type: string;
         }[] | undefined;
         subs?: {
-            type: string;
             topic: string;
+            type: string;
         }[] | undefined;
     }[];
 }, {
@@ -167,12 +167,12 @@ export declare const PackageSchema: z.ZodObject<{
         namespace?: string | undefined;
         params?: Record<string, unknown> | undefined;
         pubs?: {
-            type: string;
             topic: string;
+            type: string;
         }[] | undefined;
         subs?: {
-            type: string;
             topic: string;
+            type: string;
         }[] | undefined;
     }[];
 }>;
@@ -191,24 +191,24 @@ export declare const IRSchema: z.ZodObject<{
             pubs: z.ZodOptional<z.ZodArray<z.ZodObject<{
                 topic: z.ZodString;
                 type: z.ZodString;
-            }, "strip", z.ZodTypeAny, {
-                type: string;
+            }, "strict", z.ZodTypeAny, {
                 topic: string;
+                type: string;
             }, {
-                type: string;
                 topic: string;
+                type: string;
             }>, "many">>;
             subs: z.ZodOptional<z.ZodArray<z.ZodObject<{
                 topic: z.ZodString;
                 type: z.ZodString;
-            }, "strip", z.ZodTypeAny, {
-                type: string;
+            }, "strict", z.ZodTypeAny, {
                 topic: string;
+                type: string;
             }, {
-                type: string;
                 topic: string;
+                type: string;
             }>, "many">>;
-        }, "strip", z.ZodTypeAny, {
+        }, "strict", z.ZodTypeAny, {
             lang: "python" | "cpp";
             package: string;
             name: string;
@@ -217,12 +217,12 @@ export declare const IRSchema: z.ZodObject<{
             namespace?: string | undefined;
             params?: Record<string, unknown> | undefined;
             pubs?: {
-                type: string;
                 topic: string;
+                type: string;
             }[] | undefined;
             subs?: {
-                type: string;
                 topic: string;
+                type: string;
             }[] | undefined;
         }, {
             lang: "python" | "cpp";
@@ -233,15 +233,15 @@ export declare const IRSchema: z.ZodObject<{
             namespace?: string | undefined;
             params?: Record<string, unknown> | undefined;
             pubs?: {
-                type: string;
                 topic: string;
+                type: string;
             }[] | undefined;
             subs?: {
-                type: string;
                 topic: string;
+                type: string;
             }[] | undefined;
         }>, "many">;
-    }, "strip", z.ZodTypeAny, {
+    }, "strict", z.ZodTypeAny, {
         lang: "python" | "cpp";
         name: string;
         nodes: {
@@ -253,12 +253,12 @@ export declare const IRSchema: z.ZodObject<{
             namespace?: string | undefined;
             params?: Record<string, unknown> | undefined;
             pubs?: {
-                type: string;
                 topic: string;
+                type: string;
             }[] | undefined;
             subs?: {
-                type: string;
                 topic: string;
+                type: string;
             }[] | undefined;
         }[];
     }, {
@@ -273,16 +273,16 @@ export declare const IRSchema: z.ZodObject<{
             namespace?: string | undefined;
             params?: Record<string, unknown> | undefined;
             pubs?: {
-                type: string;
                 topic: string;
+                type: string;
             }[] | undefined;
             subs?: {
-                type: string;
                 topic: string;
+                type: string;
             }[] | undefined;
         }[];
     }>, "many">;
-}, "strip", z.ZodTypeAny, {
+}, "strict", z.ZodTypeAny, {
     packages: {
         lang: "python" | "cpp";
         name: string;
@@ -295,12 +295,12 @@ export declare const IRSchema: z.ZodObject<{
             namespace?: string | undefined;
             params?: Record<string, unknown> | undefined;
             pubs?: {
-                type: string;
                 topic: string;
+                type: string;
             }[] | undefined;
             subs?: {
-                type: string;
                 topic: string;
+                type: string;
             }[] | undefined;
         }[];
     }[];
@@ -317,12 +317,12 @@ export declare const IRSchema: z.ZodObject<{
             namespace?: string | undefined;
             params?: Record<string, unknown> | undefined;
             pubs?: {
-                type: string;
                 topic: string;
+                type: string;
             }[] | undefined;
             subs?: {
-                type: string;
                 topic: string;
+                type: string;
             }[] | undefined;
         }[];
     }[];

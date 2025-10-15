@@ -8,15 +8,19 @@
   "scripts": {
     "build": "tsc -b",
     "clean": "rimraf dist",
-    "test": "vitest run"
+    "test": "vitest run",
+    "verify": "node dist/verify.js",
+    "smoke:runner": "node dist/smoke-runner.js"
   },
   "dependencies": {
     "@bros2/shared": "workspace:*",
+    "@bros2/runner": "workspace:*",
     "fs-extra": "^11.2.0",
     "execa": "^9.3.0"
   },
   "devDependencies": {
     "@types/node": "^22.7.5",
+    "@types/fs-extra": "^11.0.4",
     "rimraf": "^6.0.1",
     "typescript": "^5.5.4",
     "vitest": "^2.0.5"
