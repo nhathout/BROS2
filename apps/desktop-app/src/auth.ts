@@ -25,7 +25,7 @@ export async function loginWithGitHub(): Promise<void> {
     return;
   }
 
-  await keytar.setPassword("BROS", "github", token.access_token);
+  await keytar.setPassword("BROS2", "github", token.access_token);
   console.log("✅ Token stored in keychain");
 }
 

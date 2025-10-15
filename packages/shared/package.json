@@ -1,7 +1,7 @@
 {
-  "name": "@bros/shared",
+  "name": "@bros2/shared",
   "version": "0.1.0",
-  "description": "Shared types and utilities for BROS",
+  "description": "Shared types and utilities for BROS2",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

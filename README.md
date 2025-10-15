@@ -26,8 +26,8 @@ docker ps
 ## First-Time Setup
 
 ```bash
-git clone https://github.com/nhathout/BROS.git
-cd BROS
+git clone https://github.com/nhathout/BROS2.git
+cd BROS2
 ./apps/desktop-app/scripts/bootstrap.sh
 ```
 

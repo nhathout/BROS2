@@ -18,7 +18,7 @@ async function loginWithGitHub() {
         console.error("❌ No access_token returned from GitHub OAuth exchange.");
         return;
     }
-    await keytar_1.default.setPassword("BROS", "github", token.access_token);
+    await keytar_1.default.setPassword("BROS2", "github", token.access_token);
     console.log("✅ Token stored in keychain");
 }
 async function openOAuthWindow(authUrl, redirectUri) {

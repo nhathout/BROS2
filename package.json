@@ -1,8 +1,8 @@
 {
-  "name": "bros",
+  "name": "bros2",
   "private": true,
   "version": "0.1.0",
-  "description": "BROS — Block ROS (Drag. Drop. Deploy.)",
+  "description": "BROS2 — Block ROS (Drag. Drop. Deploy.)",
   "workspaces": [
     "apps/*",
     "packages/*",
@@ -17,16 +17,16 @@
   "engineStrict": true,
   "repository": {
     "type": "git",
-    "url": "https://github.com/nhathout/BROS.git"
+    "url": "https://github.com/nhathout/BROS2.git"
   },
   "bugs": {
-    "url": "https://github.com/nhathout/BROS/issues"
+    "url": "https://github.com/nhathout/BROS2/issues"
   },
-  "homepage": "https://github.com/nhathout/BROS#readme",
+  "homepage": "https://github.com/nhathout/BROS2#readme",
   "scripts": {
     "bootstrap": "pnpm install -r",
     "preinstall": "node -e \"const semver=require('semver'); if(!semver.satisfies(process.version, '20.19.x')) { console.error('\\n Wrong Node version: ' + process.version + '. Please run \\'nvm use\\'.\\n'); process.exit(1); }\"",
-    "build": "pnpm -r --filter @bros/runner build",
+    "build": "pnpm -r --filter @bros2/runner build",
     "dev": "pnpm --filter ./apps/desktop-app dev",
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",

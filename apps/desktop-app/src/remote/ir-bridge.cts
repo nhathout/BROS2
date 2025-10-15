@@ -1,8 +1,8 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { ExecResult } from "@bros/runner";
-import type { IR } from "@bros/shared";
-import type { BlockGraph } from "@bros/ui";
-import type { ValidationResult } from "@bros/validation";
+import type { ExecResult } from "@bros2/runner";
+import type { IR } from "@bros2/shared";
+import type { BlockGraph } from "@bros2/ui";
+import type { ValidationResult } from "@bros2/validation";
 
 interface RunnerBridge {
   up(projectName: string): Promise<void>;

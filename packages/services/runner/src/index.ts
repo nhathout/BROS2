@@ -7,7 +7,7 @@ import { writeComposeFile } from "./compose.js";
 import type { ExecResult, LogFn, RunnerOptions } from "./types.js";
 
 const DEFAULT_IMAGE = "ros:humble";
-const PROJECT_ROOT = path.join(os.homedir(), "BROS", "Projects");
+const PROJECT_ROOT = path.join(os.homedir(), "BROS2", "Projects");
 
 function sanitizeProjectId(input: string): string {
   const normalized = input.toLowerCase().replace(/[^a-z0-9]/g, "");

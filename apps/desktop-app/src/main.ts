@@ -5,16 +5,16 @@ import type { BrowserWindow } from "electron";
 import express from "express";
 import dotenv from "dotenv";
 
-import type { BlockGraph } from "@bros/ui";
-import type { IR } from "@bros/shared";
-import type { Runner as RunnerInstance } from "@bros/runner";
+import type { BlockGraph } from "@bros2/ui";
+import type { IR } from "@bros2/shared";
+import type { Runner as RunnerInstance } from "@bros2/runner";
 
 const { app, ipcMain, shell, BrowserWindow: BrowserWindowCtor } = electron;
 
 // --- Dynamic module loaders ---
-type RunnerCtor = typeof import("@bros/runner")["Runner"];
-type BuildIrFn = typeof import("@bros/ui")["buildIR"];
-type ValidateIrFn = typeof import("@bros/validation")["validateIR"];
+type RunnerCtor = typeof import("@bros2/runner")["Runner"];
+type BuildIrFn = typeof import("@bros2/ui")["buildIR"];
+type ValidateIrFn = typeof import("@bros2/validation")["validateIR"];
 
 let runnerCtor: RunnerCtor | null = null;
 let buildIr: BuildIrFn | null = null;
@@ -22,7 +22,7 @@ let validateIr: ValidateIrFn | null = null;
 
 async function getRunnerCtor(): Promise<RunnerCtor> {
   if (!runnerCtor) {
-    const mod = await import("@bros/runner");
+    const mod = await import("@bros2/runner");
     runnerCtor = mod.Runner;
   }
   return runnerCtor;
@@ -30,7 +30,7 @@ async function getRunnerCtor(): Promise<RunnerCtor> {
 
 async function getBuildIr(): Promise<BuildIrFn> {
   if (!buildIr) {
-    const mod = await import("@bros/ui");
+    const mod = await import("@bros2/ui");
     buildIr = mod.buildIR;
   }
   return buildIr;
@@ -38,7 +38,7 @@ async function getBuildIr(): Promise<BuildIrFn> {
 
 async function getValidateIr(): Promise<ValidateIrFn> {
   if (!validateIr) {
-    const mod = await import("@bros/validation");
+    const mod = await import("@bros2/validation");
     validateIr = mod.validateIR;
   }
   return validateIr;

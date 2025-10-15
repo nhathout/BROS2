@@ -2,7 +2,7 @@
 
 import path from "node:path";
 import fs from "fs-extra";
-import type { IR, IRNode, IRPackage } from "@bros/shared";
+import type { IR, IRNode, IRPackage } from "@bros2/shared";
 import { renderTemplateJinja2 } from "./py-driver.js";
 
 /**
@@ -193,8 +193,8 @@ function ensureCommonLaunchPackage(srcRoot: string) {
 <package format="3">
   <name>${pkgName}</name>
   <version>0.0.1</version>
-  <description>Launch files for BROS workspace</description>
-  <maintainer email="dev@bros.local">BROS</maintainer>
+  <description>Launch files for 2 workspace</description>
+  <maintainer email="dev@bros2.local">BROS2</maintainer>
   <license>Apache-2.0</license>
   <buildtool_depend>ament_cmake</buildtool_depend>
   <exec_depend>launch</exec_depend>

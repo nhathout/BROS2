@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { IR } from "@bros/shared";
+import type { IR } from "@bros2/shared";
 
 import { validateIR } from "./index.js";
 

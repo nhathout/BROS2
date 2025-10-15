@@ -1,8 +1,8 @@
 {
-  "name": "bros-desktop",
+  "name": "bros2-desktop",
   "private": true,
   "version": "0.1.0",
-  "description": "BROS Desktop — Electron + React (Vite) app for visual ROS2 development",
+  "description": "BROS2 Desktop — Electron + React (Vite) app for visual ROS2 development",
   "main": "dist/main.js",
   "type": "commonjs",
   "scripts": {
@@ -18,8 +18,8 @@
     "postinstall": "electron-builder install-app-deps"
   },
   "build": {
-    "appId": "com.bros.desktop",
-    "productName": "BROS Desktop",
+    "appId": "com.bros2.desktop",
+    "productName": "BROS2 Desktop",
     "directories": {
       "output": "release"
     },
@@ -66,9 +66,9 @@
     "vite": "^7.1.7"
   },
   "dependencies": {
-    "@bros/runner": "workspace:*",
-    "@bros/ui": "workspace:*",
-    "@bros/validation": "workspace:*",
+    "@bros2/runner": "workspace:*",
+    "@bros2/ui": "workspace:*",
+    "@bros2/validation": "workspace:*",
     "bootstrap": "^5.3.8",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",

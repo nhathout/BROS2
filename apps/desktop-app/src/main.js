@@ -4,9 +4,9 @@ import { fileURLToPath } from "node:url";
 import { app, BrowserWindow, ipcMain, shell } from "electron";
 import express from "express";
 import dotenv from "dotenv";
-import { Runner } from "@bros/runner";
-import { buildIR } from "@bros/ui";
-import { validateIR } from "@bros/validation";
+import { Runner } from "@bros2/runner";
+import { buildIR } from "@bros2/ui";
+import { validateIR } from "@bros2/validation";
 // --- Setup ---
 dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
