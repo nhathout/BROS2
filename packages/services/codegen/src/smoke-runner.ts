@@ -1,11 +1,13 @@
 import os from "node:os";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import fs from "fs-extra";
 import { generateWorkspaceFromIR } from "./index.js";
 import { createExampleIR } from "./verify.js";
 
-const TEMPLATE_ROOT = path.join(process.cwd(), "packages", "templates", "ros2", "python");
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const TEMPLATE_ROOT = path.resolve(__dirname, "..", "..", "..", "templates", "ros2", "python");
 
 async function runSmoke() {
   let runnerModule: typeof import("@bros2/runner") | undefined;
