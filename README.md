@@ -1,4 +1,4 @@
-<p align="center">
+<p align="left">
   <img src="assets/logos/BROS2-logo-long.png" alt="BROS2 logo" width="440">
 </p>
 
@@ -6,13 +6,13 @@ BROS2 (Block ROS2) is an Electron desktop environment for building, simulating, 
 
 Basically, BROS2 (Block ROS2) is an Electron desktop app that lets you assemble ROS2 graphs visually and run them through a managed Docker workspace 🦾🤖
 
-## Why BROS2?
+## 🔎 Why BROS2?
 - Visual composition of ROS 2 nodes, topics, and services without leaving the editor.
 - Automatic generation of package scaffolding and launch files from the block graph.
 - Integrated simulation hooks (Gazebo, Isaac) and telemetry panels for rapid iteration.
 - Cross-platform desktop app distributed via Electron so teams share a single workflow.
 
-## Requirements
+## 📋 Requirements
 - macOS (Apple Silicon or Intel) or Linux with Docker Desktop / Docker Engine running.
 - Git, curl, and bash (used by the bootstrap script).
 - Internet access to download Node, pnpm, and Electron during setup.
@@ -23,7 +23,7 @@ Verify Docker access before continuing:
 docker ps
 ```
 
-## First-Time Setup
+## 🧱 First-Time Setup
 
 ```bash
 git clone https://github.com/nhathout/BROS2.git
@@ -39,7 +39,7 @@ The bootstrap script installs or activates:
 
 It launches the packaged app once everything compiles. If the script adds an `nvm use` snippet to your shell profile, open a new terminal so `pnpm` is on your `PATH` next time.
 
-## Daily Development
+## ⏳ Daily Development
 
 From a bootstrapped workspace, start the dev environment from the desktop app folder:
 
@@ -57,7 +57,7 @@ If you pull dependency changes later, refresh them with:
 pnpm install -r
 ```
 
-## ROS 2 Dev Notes
+## 🤖 ROS 2 Dev Notes
 
 The preload bridge exposes `window.runner` for Docker-backed ROS 2 sessions and `window.ir` for graph validation.
 
@@ -70,7 +70,7 @@ window.ir.build(graph: BlockGraph): Promise<{ ir: IR; issues: string[] }>;
 window.ir.validate(ir: IR): Promise<{ errors: Issue[]; warnings: Issue[] }>;
 ```
 
-### Runner sanity check (DevTools)
+### ☑️ Runner sanity check (DevTools)
 
 With Docker running and the app in dev mode, open DevTools (`View → Toggle Developer Tools`) and run:
 
@@ -98,7 +98,7 @@ const { errors, warnings } = await window.ir.validate(ir);
 console.log({ issues, errors, warnings });
 ```
 
-## Cleaning
+## 🧹 Cleaning
 
 Wipe compiled artifacts across every workspace when you need a fresh build:
 
@@ -116,7 +116,7 @@ pnpm install -r
 
 After cleaning, rerun `pnpm dev` (or `./apps/desktop-app/scripts/bootstrap.sh`) to rebuild the app.
 
-## Tips
+## 💡 Tips
 - Keep Docker running whenever you use `window.runner.*`; the runner manages containers in `Projects/`.
 - If `pnpm dev` fails because Electron is missing, re-run `node node_modules/electron/install.js`.
 - Rerun the bootstrap script after major Node/pnpm upgrades—it is idempotent and safe to run again.
