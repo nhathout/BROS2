@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { Runtime, type NodeContext, type NodeInstance } from "./index";
+import {
+  Runtime,
+  type NodeContext,
+  type NodeInstance,
+  type Publish,
+} from "./index.js";
 
 class DummyNode implements NodeInstance {
   id: string;
@@ -43,7 +48,7 @@ class PublishOnceNode implements NodeInstance {
 describe("Runtime", () => {
   it("creates nodes and manages lifecycle", () => {
     const runtime = new Runtime({
-      Dummy: (ctx) => new DummyNode(ctx),
+      Dummy: (ctx: NodeContext) => new DummyNode(ctx),
     });
 
     const instance = runtime.create("Dummy");
@@ -61,12 +66,13 @@ describe("Runtime", () => {
 
   it("emits published messages onto the shared bus", () => {
     const runtime = new Runtime({
-      Pub: (ctx, config) => new PublishOnceNode(ctx, config),
+      Pub: (ctx: NodeContext, config: { topic: string; payload: unknown }) =>
+        new PublishOnceNode(ctx, config),
     });
 
     const payload = { foo: "bar" };
     let received: unknown;
-    runtime.bus.once("my/topic", (evt) => {
+    runtime.bus.once("my/topic", (evt: Publish) => {
       received = evt.data;
     });
 
