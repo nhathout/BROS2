@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { ExecResult } from "@bros/runner";
+import type { ExecResult } from "@bros2/runner";
 
 type RunnerBridge = {
   up(projectName: string): Promise<void>;

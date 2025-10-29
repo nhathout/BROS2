@@ -3,21 +3,51 @@
   "compilerOptions": {
     "rootDir": "src",
     "outDir": "dist",
+
     "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "target": "ES2022",
-    "lib": ["ES2022"],
+    "lib": ["ES2022", "DOM"],
+
     "types": ["node"],
     "esModuleInterop": true,
     "allowJs": true,
     "skipLibCheck": true,
     "composite": true,
-    "noEmitOnError": false
+    "noEmitOnError": false,
+
+    "baseUrl": ".",
+
+    // 👇 IMPORTANT: point ONLY to built .d.ts (not src/) so TSC doesn't drag in external TS files
+    "paths": {
+      "@bros2/runtime": [
+        "../../packages/services/runtime/dist/index.d.ts"
+      ],
+      "@bros2/shared": [
+        "../../packages/shared/dist/index.d.ts"
+      ],
+      "@bros2/ui": [
+        "../../packages/ui/dist/index.d.ts"
+      ],
+      "@bros2/validation": [
+        "../../packages/services/validation/dist/index.d.ts"
+      ],
+      "@bros2/runner": [
+        "../../packages/services/runner/dist/index.d.ts"
+      ]
+    }
   },
-  "include": ["src/main.ts", "src/preload.ts", "src/remote/**/*"],
+  "include": [
+    "src/main.ts",
+    "src/preload.ts",
+    "src/remote/**/*",
+    "src/renderer/runtime/**/*.ts"
+  ],
   "references": [
+    { "path": "../../packages/services/runtime" },     // 👈 add runtime so it builds first
     { "path": "../../packages/shared" },
     { "path": "../../packages/ui" },
-    { "path": "../../packages/services/runner" },
-    { "path": "../../packages/services/validation" }
+    { "path": "../../packages/services/validation" },
+    { "path": "../../packages/services/runner" }
   ]
 }

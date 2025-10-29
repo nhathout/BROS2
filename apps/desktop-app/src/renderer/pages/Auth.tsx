@@ -23,7 +23,7 @@ const AuthPage: React.FC<Props> = ({ onLoginGitHub, onLoginGoogle }) => {
           style={{ cursor: "pointer" }}
           onClick={() => navigate("/")}  // 👈 navigate back to landing page
         >
-          BROS
+          BROS2
         </span>
       </header>
 

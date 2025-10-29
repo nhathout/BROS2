@@ -26,8 +26,8 @@ docker ps
 ## 🧱 First-Time Setup
 
 ```bash
-git clone https://github.com/nhathout/BROS.git
-cd BROS
+git clone https://github.com/nhathout/BROS2.git
+cd BROS2
 ./apps/desktop-app/scripts/bootstrap.sh
 ```
 
@@ -41,20 +41,54 @@ It launches the packaged app once everything compiles. If the script adds an `nv
 
 ## ⏳ Daily Development
 
-From a bootstrapped workspace, start the dev environment from the desktop app folder:
+1. **Select Node 20.19.x** (every new shell resets your `nvm` version):
+
+   ```bash
+   source ~/.nvm/nvm.sh
+   nvm use 20.19.0
+   ```
+
+2. **Refresh dependencies** after pulling changes:
+
+   ```bash
+   pnpm install -r
+   ```
+
+3. **Build the workspace libraries** so their `.d.ts` files exist for the Electron main process. Run each filter separately from the repo root (brace expansion is not supported):
+
+   ```bash
+   pnpm --filter @bros2/runtime build
+   pnpm --filter @bros2/shared build
+   pnpm --filter @bros2/ui build
+   pnpm --filter @bros2/validation build
+   pnpm --filter @bros2/runner build
+   ```
+
+4. **Emit the desktop main + preload bundle** (run from the repo root so the filter resolves):
+
+   ```bash
+   pnpm --filter ./apps/desktop-app build:main
+   ```
+
+   (Optional) Build the renderer bundle for production checks — also from the repo root:
+
+   ```bash
+   pnpm --filter ./apps/desktop-app build:renderer
+   ```
+
+5. **Start the dev environment** (Electron main + Vite renderer):
+
+   ```bash
+   pnpm --filter ./apps/desktop-app dev
+   ```
+
+   Keep this process running while you iterate. You can still `cd apps/desktop-app && pnpm dev`, but the filtered form avoids path mistakes.
+
+If Electron complains about missing binaries, reinstall them once:
 
 ```bash
 cd apps/desktop-app
-node node_modules/electron/install.js  
-pnpm dev
-```
-
-`pnpm dev` runs the Electron main process (`dev:main`) and the Vite renderer (`dev:renderer`) concurrently. Keep this terminal open while developing. You can also run the same command from the repo root with `pnpm --filter ./apps/desktop-app dev`.
-
-If you pull dependency changes later, refresh them with:
-
-```bash
-pnpm install -r
+node node_modules/electron/install.js
 ```
 
 ## 🤖 ROS 2 Dev Notes
@@ -98,23 +132,54 @@ const { errors, warnings } = await window.ir.validate(ir);
 console.log({ issues, errors, warnings });
 ```
 
-## 🧹 Cleaning
+### Runtime bridge & ArrowKey publisher smoke test
 
-Wipe compiled artifacts across every workspace when you need a fresh build:
+The preload now exposes `window.runtime` alongside the runner and IR bridges. With the dev app running:
 
-```bash
-pnpm -r clean
+```js
+typeof window.runtime; // "object"
+const id = window.runtime.create("ArrowKeyPub", { topic: "keys/arrows" });
+window.runtime.start(id);
+// Press arrow keys while the Electron window is focused:
+// [publish] keys/arrows <- { key: "left", ts: ... }
+// [node:ArrowKeyPub_1] pressed: left
+window.runtime.stop(id);
+window.runtime.list(); // ["ArrowKeyPub_1"]
 ```
 
-To reset dependencies as well:
+If `window.runtime` is missing, run `pnpm --filter ./apps/desktop-app build:main` again to regenerate the preload bridges.
 
-```bash
-pnpm store prune
-rm -rf node_modules
-pnpm install -r
-```
+## 🧹 Cleaning & Full Rebuild
 
-After cleaning, rerun `pnpm dev` (or `./apps/desktop-app/scripts/bootstrap.sh`) to rebuild the app.
+1. Remove build outputs everywhere (this clears `dist/` folders and `tsconfig.main.tsbuildinfo`, ensuring the desktop main bundle re-emits `dist/main.js`):
+
+   ```bash
+   pnpm -r clean
+   ```
+
+2. Reset dependencies if things get out of sync:
+
+   ```bash
+   pnpm store prune   # optional
+   rm -rf node_modules
+   pnpm install -r
+   ```
+
+3. Rebuild the workspaces and desktop app using the daily workflow above. When `build:main` succeeds you should have:
+
+   ```
+   apps/desktop-app/dist/main.js
+   apps/desktop-app/dist/preload.js
+   apps/desktop-app/dist/remote/runtime-bridge.cjs
+   ```
+
+4. (Optional) Produce installers:
+
+   ```bash
+   pnpm -r build
+   ```
+
+   You may ignore macOS code-sign warnings on local development machines.
 
 ## 💡 Tips
 - Keep Docker running whenever you use `window.runner.*`; the runner manages containers in `Projects/`.

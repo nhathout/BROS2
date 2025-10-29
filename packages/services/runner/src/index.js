@@ -5,7 +5,7 @@ import path from "node:path";
 import { composeDown, composeUp, ensureImage, execInContainer } from "./docker.js";
 import { writeComposeFile } from "./compose.js";
 const DEFAULT_IMAGE = "ros:humble";
-const PROJECT_ROOT = path.join(os.homedir(), "BROS", "Projects");
+const PROJECT_ROOT = path.join(os.homedir(), "BROS2", "Projects");
 function sanitizeProjectId(input) {
     const normalized = input.toLowerCase().replace(/[^a-z0-9]/g, "");
     return normalized.length > 0 ? normalized : "default";

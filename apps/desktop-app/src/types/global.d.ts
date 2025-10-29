@@ -2,7 +2,7 @@
 
 export {};
 
-import type { ExecResult } from "@bros/runner";
+import type { ExecResult } from "@bros2/runner";
 
 declare global {
   interface Window {
@@ -19,6 +19,14 @@ declare global {
       login: () => Promise<{ success: boolean; error?: string }>;
       loginGoogle?: () => Promise<{ success: boolean; error?: string }>;
     };
+    runtime: {
+      create(type: string, config?: any): string;
+      start(id: string): void;
+      stop(id: string): void;
+      startAll(): void;
+      stopAll(): void;
+      list(): string[];
+    };
   }
 }
 
@@ -26,4 +34,3 @@ declare module "*.mp4" {
   const src: string;
   export default src;
 }
-

@@ -5,7 +5,7 @@
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "scripts": { "build": "tsc -b", "clean": "rimraf dist", "test": "vitest run" },
+  "scripts": { "build": "tsc -b", "clean": "rimraf dist tsconfig.tsbuildinfo", "test": "vitest run" },
   "devDependencies": {
     "@types/node": "^22.7.5",
     "rimraf": "^6.0.1",

@@ -1,7 +1,7 @@
 {
-  "name": "@bros/validation",
+  "name": "@bros2/validation",
   "version": "0.1.0",
-  "description": "Validation utilities for BROS intermediate representation",
+  "description": "Validation utilities for BROS2 intermediate representation",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -21,7 +21,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@bros/shared": "workspace:^"
+    "@bros2/shared": "workspace:^"
   },
   "devDependencies": {
     "typescript": "^5.9.2",

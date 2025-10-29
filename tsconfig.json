@@ -10,14 +10,14 @@
     "forceConsistentCasingInFileNames": true,
     "baseUrl": ".",
     "paths": {
-      "@bros/shared": ["packages/shared/src/index.ts"],
-      "@bros/shared/*": ["packages/shared/src/*"],
-      "@bros/ui": ["packages/ui/src/index.ts"],
-      "@bros/ui/*": ["packages/ui/src/*"],
-      "@bros/validation": ["packages/services/validation/src/index.ts"],
-      "@bros/validation/*": ["packages/services/validation/src/*"],
-      "@bros/runner": ["packages/services/runner/src/index.ts"],
-      "@bros/runner/*": ["packages/services/runner/src/*"],
+      "@bros2/shared": ["packages/shared/src/index.ts"],
+      "@bros2/shared/*": ["packages/shared/src/*"],
+      "@bros2/ui": ["packages/ui/src/index.ts"],
+      "@bros2/ui/*": ["packages/ui/src/*"],
+      "@bros2/validation": ["packages/services/validation/src/index.ts"],
+      "@bros2/validation/*": ["packages/services/validation/src/*"],
+      "@bros2/runner": ["packages/services/runner/src/index.ts"],
+      "@bros2/runner/*": ["packages/services/runner/src/*"],
       "@/*": ["apps/desktop-app/src/renderer/*"]
     }
   },
