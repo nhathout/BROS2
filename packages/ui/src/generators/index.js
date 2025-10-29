@@ -1,4 +1,4 @@
-import { IRSchema, mergeIRFragments } from "@bros/shared";
+import { IRSchema, mergeIRFragments } from "@bros2/shared";
 function getNodeScaffold(node) {
     const lang = node.lang ?? "python";
     const packageName = node.pkg ?? node.name ?? node.id;

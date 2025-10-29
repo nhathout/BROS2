@@ -1,4 +1,4 @@
-import type { IR, IRNode, IRPackage, IRTopicRef } from "@bros/shared";
+import type { IR, IRNode, IRPackage, IRTopicRef } from "@bros2/shared";
 
 export type IssueLevel = "error" | "warning";
 

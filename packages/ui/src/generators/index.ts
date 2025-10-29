@@ -1,5 +1,5 @@
-import { IRSchema, mergeIRFragments } from "@bros/shared";
-import type { IR } from "@bros/shared";
+import { IRSchema, mergeIRFragments } from "@bros2/shared";
+import type { IR } from "@bros2/shared";
 import type { BlockGraph, BlockNode, BlockPublish, BlockSubscribe } from "../types/blocks.js";
 
 interface NodeScaffold {

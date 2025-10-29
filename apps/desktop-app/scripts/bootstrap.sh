@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # -------------------------------
-# BROS Bootstrap Script
+# BROS2 Bootstrap Script
 # -------------------------------
 # 1. Ensures NVM is installed
 # 2. Uses Node 20.19.0
@@ -16,7 +16,7 @@ PNPM_VERSION="10.17.1"
 NVM_INSTALL_URL="https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh"
 AUTO_NVM_CONFIGURED=0
 
-echo "Bootstrapping BROS development environment..."
+echo "Bootstrapping BROS2 development environment..."
 
 # --- Install / Load NVM ---
 export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
@@ -50,7 +50,7 @@ AUTO_NVM_SNIPPET="nvm use $NODE_VERSION"
 if [ -w "$ZSHRC_PATH" ] && ! grep -Fq "$AUTO_NVM_SNIPPET" "$ZSHRC_PATH"; then
   echo "ℹ️ Enabling automatic 'nvm use $NODE_VERSION' in $ZSHRC_PATH"
   {
-    echo "\n# BROS bootstrap: ensure Node $NODE_VERSION via nvm"
+    echo "\n# BROS2 bootstrap: ensure Node $NODE_VERSION via nvm"
     echo "if [ -s \"$NVM_DIR/nvm.sh\" ]; then"
     echo "  . \"$NVM_DIR/nvm.sh\""
     echo "  nvm use $NODE_VERSION >/dev/null"
@@ -113,7 +113,7 @@ echo "Building renderer assets..."
 pnpm --filter ./apps/desktop-app build:renderer
 
 # --- Launch packaged Electron binary ---
-echo "Launching BROS desktop (Electron)…"
+echo "Launching BROS2 desktop (Electron)…"
 pnpm --filter ./apps/desktop-app start
 
 echo "Bootstrap complete!"

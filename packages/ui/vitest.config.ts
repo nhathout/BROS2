@@ -9,7 +9,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "@bros/shared": path.join(sharedRoot, "index.ts")
+      "@bros2/shared": path.join(sharedRoot, "index.ts")
     }
   }
 });

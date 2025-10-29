@@ -15,7 +15,7 @@ const slides = [
   },
   {
     title: " Deploy Anywhere",
-    text: " Run your pipelines locally or push to the cloud — BROS scales with you.",
+    text: " Run your pipelines locally or push to the cloud — BROS2 scales with you.",
   },
 ];
 
@@ -92,7 +92,7 @@ const LandingPage: React.FC = () => {
   return (
     <>
       <header className="app-header">
-        <span className="brand">BROS</span>
+        <span className="brand">BROS2</span>
       </header>
 
       <div className="login-container">

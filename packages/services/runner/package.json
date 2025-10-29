@@ -1,7 +1,7 @@
 {
-  "name": "@bros/runner",
+  "name": "@bros2/runner",
   "version": "0.1.0",
-  "description": "Docker Compose ROS 2 environment runner for BROS.",
+  "description": "Docker Compose ROS 2 environment runner for BROS2.",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
