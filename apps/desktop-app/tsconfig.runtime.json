@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "src/renderer/runtime",
+    "outDir": "dist/renderer/runtime",
+
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
+
+    "types": ["node"],
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "composite": false,
+    "noEmitOnError": false
+  },
+  "include": ["src/renderer/runtime/**/*.ts"]
+}

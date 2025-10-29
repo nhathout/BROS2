@@ -10,7 +10,7 @@
     "dev:main": "cross-env NODE_ENV=development TS_NODE_PROJECT=tsconfig.main.json electron ./electron-main.cjs",
     "dev:renderer": "vite --config src/renderer/vite.config.ts",
     "build": "pnpm clean && pnpm build:main && pnpm build:renderer && electron-builder",
-    "build:main": "tsc -p tsconfig.main.json",
+    "build:main": "tsc -p tsconfig.main.json && tsc -p tsconfig.runtime.json",
     "build:renderer": "vite build --config src/renderer/vite.config.ts",
     "start": "cross-env NODE_ENV=production electron ./dist/main.js",
     "clean": "rimraf dist release tsconfig.main.tsbuildinfo",
