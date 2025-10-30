@@ -64,7 +64,8 @@ It launches the packaged app once everything compiles. If the script adds an `nv
    pnpm --filter @bros2/runner build
    ```
 
-4. **Emit the desktop main + preload bundle** (run from the repo root so the filter resolves):
+4. **Emit the desktop main + preload bundle** (run from the repo root).  
+   _Do not skip this step after running `pnpm -r clean`; it regenerates the preload bridges and the runtime registry that power `window.runtime`._
 
    ```bash
    pnpm --filter ./apps/desktop-app build:main
@@ -82,7 +83,7 @@ It launches the packaged app once everything compiles. If the script adds an `nv
    pnpm --filter ./apps/desktop-app dev
    ```
 
-   Keep this process running while you iterate. You can still `cd apps/desktop-app && pnpm dev`, but the filtered form avoids path mistakes.
+   Keep this process running while you iterate. You can still `cd apps/desktop-app && pnpm dev`, but the filtered form avoids path mistakes. After Electron opens, pop open DevTools and run `typeof window.runtime`—it should log `"object"` if the preload bridges built correctly.
 
 If Electron complains about missing binaries, reinstall them once:
 
@@ -165,12 +166,13 @@ If `window.runtime` is missing, run `pnpm --filter ./apps/desktop-app build:main
    pnpm install -r
    ```
 
-3. Rebuild the workspaces and desktop app using the daily workflow above. When `build:main` succeeds you should have:
+3. Rebuild the workspaces and desktop app using the daily workflow above. When `build:main` completes you should have:
 
    ```
    apps/desktop-app/dist/main.js
    apps/desktop-app/dist/preload.js
    apps/desktop-app/dist/remote/runtime-bridge.cjs
+   apps/desktop-app/dist/renderer/runtime/registry.js
    ```
 
 4. (Optional) Produce installers:
