@@ -133,19 +133,22 @@ const { errors, warnings } = await window.ir.validate(ir);
 console.log({ issues, errors, warnings });
 ```
 
-### Runtime bridge & ArrowKey publisher smoke test
+### Runtime bridge smoke test (ArrowKeyPub + ConsoleSub)
 
 The preload now exposes `window.runtime` alongside the runner and IR bridges. With the dev app running:
 
 ```js
 typeof window.runtime; // "object"
-const id = window.runtime.create("ArrowKeyPub", { topic: "keys/arrows" });
-window.runtime.start(id);
+const pubId = window.runtime.create("ArrowKeyPub", { topic: "keys/arrows" });
+const subId = window.runtime.create("ConsoleSub", { topic: "keys/arrows" });
+window.runtime.start(pubId);
+window.runtime.start(subId);
 // Press arrow keys while the Electron window is focused:
 // [publish] keys/arrows <- { key: "left", ts: ... }
-// [node:ArrowKeyPub_1] pressed: left
-window.runtime.stop(id);
-window.runtime.list(); // ["ArrowKeyPub_1"]
+// [node:ConsoleSub_1] received from ArrowKeyPub_1: {"key":"left","ts":...}
+window.runtime.stop(subId);
+window.runtime.stop(pubId);
+window.runtime.list(); // ["ArrowKeyPub_1", "ConsoleSub_1"]
 ```
 
 If `window.runtime` is missing, run `pnpm --filter ./apps/desktop-app build:main` again to regenerate the preload bridges.
