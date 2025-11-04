@@ -6,13 +6,13 @@ BROS2 (Block ROS2) is an Electron desktop environment for building, simulating, 
 
 Basically, BROS2 (Block ROS2) is an Electron desktop app that lets you assemble ROS2 graphs visually and run them through a managed Docker workspace 🦾🤖
 
-## 🔎 Why BROS2?
+## Why BROS2?
 - Visual composition of ROS 2 nodes, topics, and services without leaving the editor.
 - Automatic generation of package scaffolding and launch files from the block graph.
 - Integrated simulation hooks (Gazebo, Isaac) and telemetry panels for rapid iteration.
 - Cross-platform desktop app distributed via Electron so teams share a single workflow.
 
-## 📋 Requirements
+## Requirements
 - macOS (Apple Silicon or Intel) or Linux with Docker Desktop / Docker Engine running.
 - Git, curl, and bash (used by the bootstrap script).
 - Internet access to download Node, pnpm, and Electron during setup.
@@ -23,7 +23,7 @@ Verify Docker access before continuing:
 docker ps
 ```
 
-## 🧱 First-Time Setup
+## First-Time Setup
 
 ```bash
 git clone https://github.com/nhathout/BROS2.git
@@ -39,7 +39,7 @@ The bootstrap script installs or activates:
 
 It launches the packaged app once everything compiles. If the script adds an `nvm use` snippet to your shell profile, open a new terminal so `pnpm` is on your `PATH` next time.
 
-## ⏳ Daily Development
+## Daily Development
 
 1. **Select Node 20.19.x** (every new shell resets your `nvm` version):
 
@@ -92,7 +92,7 @@ cd apps/desktop-app
 node node_modules/electron/install.js
 ```
 
-## 🤖 ROS 2 Dev Notes
+## ROS 2 Dev Notes
 
 The preload bridge exposes `window.runner` for Docker-backed ROS 2 sessions and `window.ir` for graph validation.
 
@@ -105,7 +105,7 @@ window.ir.build(graph: BlockGraph): Promise<{ ir: IR; issues: string[] }>;
 window.ir.validate(ir: IR): Promise<{ errors: Issue[]; warnings: Issue[] }>;
 ```
 
-### ☑️ Runner sanity check (DevTools)
+### Runner sanity check (DevTools)
 
 With Docker running and the app in dev mode, open DevTools (`View → Toggle Developer Tools`) and run:
 
@@ -153,7 +153,7 @@ window.runtime.list(); // ["ArrowKeyPub_1", "ConsoleSub_1"]
 
 If `window.runtime` is missing, run `pnpm --filter ./apps/desktop-app build:main` again to regenerate the preload bridges.
 
-## 🧹 Cleaning & Full Rebuild
+## Cleaning & Full Rebuild
 
 1. Remove build outputs everywhere (this clears `dist/` folders and `tsconfig.main.tsbuildinfo`, ensuring the desktop main bundle re-emits `dist/main.js`):
 
@@ -186,7 +186,7 @@ If `window.runtime` is missing, run `pnpm --filter ./apps/desktop-app build:main
 
    You may ignore macOS code-sign warnings on local development machines.
 
-## 💡 Tips
+## Tips
 - Keep Docker running whenever you use `window.runner.*`; the runner manages containers in `Projects/`.
 - If `pnpm dev` fails because Electron is missing, re-run `node node_modules/electron/install.js`.
 - Rerun the bootstrap script after major Node/pnpm upgrades—it is idempotent and safe to run again.
