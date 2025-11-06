@@ -7,15 +7,15 @@ import "../styles/login.css";
 const slides = [
   {
     title: " Block ROS made simple",
-    text: " Drag, drop, deploy. Build robotic workflows without complex coding.",
+    text: " Drag, drop, deploy. Build robotic workflows without complex coding",
   },
   {
     title: " Powerful Integrations",
-    text: " Seamlessly connect with ROS2, Gazebo, and Isaac Sim for rapid prototyping.",
+    text: " Seamlessly connect with ROS2, Gazebo, and Isaac Sim for rapid prototyping",
   },
   {
     title: " Deploy Anywhere",
-    text: " Run your pipelines locally or push to the cloud — BROS2 scales with you.",
+    text: " Run your pipelines locally or push to the cloud — BROS2 scales with you",
   },
 ];
 

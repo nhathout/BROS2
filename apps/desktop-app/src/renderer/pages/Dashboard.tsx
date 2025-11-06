@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   FiHome,
   FiClock,
@@ -12,13 +12,15 @@ import {
   FiLogOut,
 } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
+import type { WorkspaceDocument, WorkspaceNode, WorkspaceSummary } from "../../shared/workspace";
 import "../styles/Dashboard.css";
 
-type FileRecord = {
-  id: string;
+type WorkspaceCard = {
+  workspaceId: string;
   name: string;
   description: string;
   updatedAt: string;
+  updatedAtISO: string;
   owner: string;
   badge: "doc" | "sheet" | "slide" | "pdf" | "image";
   color: string;
@@ -47,67 +49,7 @@ const folderData: FolderRecord[] = [
   { id: "f-4", name: "Archived Concepts", location: "In My Drive", color: "#ab47bc", isTrashed: true },
 ];
 
-const fileData: FileRecord[] = [
-  {
-    id: "doc-1",
-    name: "Systems Design Doc",
-    description: "Architecture proposal for BROS2 orchestrator.",
-    updatedAt: "Edited · Oct 28, 2025",
-    owner: "You",
-    badge: "doc",
-    color: "#5b7fff",
-    isRecent: true,
-  },
-  {
-    id: "sheet-1",
-    name: "Robotics BOM",
-    description: "Bill of material for current hardware kit.",
-    updatedAt: "Opened · Oct 26, 2025",
-    owner: "Jules",
-    badge: "sheet",
-    color: "#34a853",
-    isRecent: true,
-  },
-  {
-    id: "slide-1",
-    name: "Investor Pitch Deck",
-    description: "Latest deck with adoption metrics.",
-    updatedAt: "Edited · Oct 19, 2025",
-    owner: "Marie",
-    badge: "slide",
-    color: "#fbbc04",
-  },
-  {
-    id: "pdf-1",
-    name: "ROS2 Node Checklist",
-    description: "Reference checklist before publishing packages.",
-    updatedAt: "Opened · Sep 30, 2025",
-    owner: "You",
-    badge: "pdf",
-    color: "#ea4335",
-  },
-  {
-    id: "img-1",
-    name: "Simulation Screenshot",
-    description: "Gazebo capture from the latest run.",
-    updatedAt: "Opened · Aug 12, 2025",
-    owner: "Devon",
-    badge: "image",
-    color: "#8e24aa",
-  },
-  {
-    id: "trash-1",
-    name: "Deprecated Pipeline",
-    description: "Old YAML manifest no longer needed.",
-    updatedAt: "Trashed · Jul 07, 2025",
-    owner: "You",
-    badge: "doc",
-    color: "#9e9e9e",
-    isTrashed: true,
-  },
-];
-
-const badgeLabel: Record<FileRecord["badge"], string> = {
+const badgeLabel: Record<WorkspaceCard["badge"], string> = {
   doc: "Doc",
   sheet: "Sheet",
   slide: "Slide",
@@ -115,13 +57,184 @@ const badgeLabel: Record<FileRecord["badge"], string> = {
   image: "Image",
 };
 
+const colorPalette = ["#5b7fff", "#34a853", "#fbbc04", "#ea4335", "#8e24aa", "#00bcd4", "#f97316"];
+const badgeCycle: WorkspaceCard["badge"][] = ["doc", "sheet", "slide", "pdf", "image"];
+
+const hashString = (value: string) =>
+  value.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+
+const pickColor = (id: string) => colorPalette[Math.abs(hashString(id)) % colorPalette.length];
+const pickBadge = (id: string) => badgeCycle[Math.abs(hashString(id)) % badgeCycle.length];
+
+const formatUpdatedLabel = (iso: string) => {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "Edited · recently";
+  return `Edited · ${date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  })}`;
+};
+
+const computeIsRecent = (iso: string) => {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return false;
+  const diff = Date.now() - date.getTime();
+  const sevenDays = 7 * 24 * 60 * 60 * 1000;
+  return diff <= sevenDays;
+};
+
+const randomNodeId = () =>
+  globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2, 10);
+
+const makeNode = (
+  type: string,
+  label: string,
+  position: { x: number; y: number },
+  meta?: WorkspaceNode["meta"]
+): WorkspaceNode => ({
+  id: randomNodeId(),
+  type,
+  label,
+  position,
+  meta,
+});
+
+const workspaceSeedTemplates: Array<{
+  name: string;
+  meta: WorkspaceDocument["meta"];
+  createNodes: () => WorkspaceDocument["nodes"];
+}> = [
+  {
+    name: "Autonomy Sandbox",
+    meta: {
+      description: "Sensors → decisions → motion. Perfect starting point for robotics flows.",
+      tags: ["sample", "autonomy"],
+    },
+    createNodes: () => [
+      makeNode("entry", "Start", { x: 96, y: 80 }),
+      makeNode("sensor", "Read Sensors", { x: 260, y: 180 }),
+      makeNode("logic", "Decision Engine", { x: 460, y: 120 }),
+      makeNode("actuator", "Motor Control", { x: 640, y: 220 }),
+    ],
+  },
+  {
+    name: "Perception Pipeline",
+    meta: {
+      description: "Camera stream with preprocessing, detection, and overlay output.",
+      tags: ["sample", "perception"],
+    },
+    createNodes: () => [
+      makeNode("input", "Camera Feed", { x: 120, y: 140 }),
+      makeNode("transform", "Preprocess", { x: 320, y: 80 }),
+      makeNode("model", "Object Detector", { x: 520, y: 140 }),
+      makeNode("visualize", "HUD Overlay", { x: 700, y: 220 }),
+    ],
+  },
+  {
+    name: "Mission Planner",
+    meta: {
+      description: "Waypoint planner combining mapping, costmaps, and navigation goals.",
+      tags: ["sample", "planning"],
+    },
+    createNodes: () => [
+      makeNode("map", "Map Loader", { x: 140, y: 100 }),
+      makeNode("costmap", "Costmap Builder", { x: 340, y: 200 }),
+      makeNode("planner", "Route Planner", { x: 540, y: 120 }),
+      makeNode("goal", "Dispatch Goals", { x: 720, y: 240 }),
+    ],
+  },
+];
+
 const Dashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<(typeof tabs)[number]["id"]>("home");
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [workspaces, setWorkspaces] = useState<WorkspaceSummary[]>([]);
+  const [loadingWorkspaces, setLoadingWorkspaces] = useState(false);
+  const [workspaceError, setWorkspaceError] = useState<string | null>(null);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const accountRef = useRef<HTMLDivElement | null>(null);
   const navigate = useNavigate();
+
+  const seedWorkspaces = useCallback(async () => {
+    if (!window.workspace) {
+      setWorkspaceError(
+        "Workspace storage bridge is unavailable. Try restarting the desktop app to reload the preload script."
+      );
+      return;
+    }
+
+    try {
+      for (const template of workspaceSeedTemplates) {
+        await window.workspace.create({
+          name: template.name,
+          template: {
+            nodes: template.createNodes(),
+            meta: template.meta,
+          },
+          meta: template.meta,
+        });
+      }
+    } catch (err) {
+      console.error("[dashboard] failed to seed workspaces", err);
+      setWorkspaceError("We couldn't create sample workspaces. Try again or check disk permissions.");
+    }
+  }, []);
+
+  const refreshWorkspaces = useCallback(async () => {
+    setLoadingWorkspaces(true);
+    setWorkspaceError(null);
+
+    if (!window.workspace) {
+      setLoadingWorkspaces(false);
+      setWorkspaceError(
+        "Workspace storage bridge is unavailable. Please restart the app so the preload scripts reload."
+      );
+      return;
+    }
+
+    try {
+      let list = await window.workspace.list();
+      if (!list.length) {
+        await seedWorkspaces();
+        list = window.workspace ? await window.workspace.list() : [];
+      }
+      setWorkspaces(list);
+    } catch (err) {
+      console.error("[dashboard] failed to load workspaces", err);
+      setWorkspaceError(
+        "Unable to load your workspaces. We tried falling back to a local app data folder—please relaunch or check disk permissions if this continues."
+      );
+    } finally {
+      setLoadingWorkspaces(false);
+    }
+  }, [seedWorkspaces]);
+
+  useEffect(() => {
+    refreshWorkspaces();
+  }, [refreshWorkspaces]);
+
+  const workspaceCards = useMemo<WorkspaceCard[]>(() => {
+    return workspaces.map((workspace) => {
+      const color = pickColor(workspace.id);
+      const badge = pickBadge(workspace.id);
+      return {
+        workspaceId: workspace.id,
+        name: workspace.name,
+        description:
+          workspace.meta?.description ??
+          "Locally stored workspace in your BROS2 directory.",
+        updatedAt: formatUpdatedLabel(workspace.updatedAt),
+        updatedAtISO: workspace.updatedAt,
+        owner: "You",
+        badge,
+        color,
+        isRecent: computeIsRecent(workspace.updatedAt),
+        isTrashed: workspace.meta?.tags?.includes("trash") ?? false,
+      };
+    });
+  }, [workspaces]);
 
   const visibleFolders = useMemo(() => {
     const query = searchQuery.toLowerCase();
@@ -137,7 +250,7 @@ const Dashboard: React.FC = () => {
   const visibleFiles = useMemo(() => {
     const query = searchQuery.toLowerCase();
 
-    return fileData.filter((file) => {
+    return workspaceCards.filter((file) => {
       if (activeTab === "trash" && !file.isTrashed) return false;
       if (activeTab === "recent" && !file.isRecent) return false;
       if (activeTab === "home" && file.isTrashed) return false;
@@ -147,12 +260,12 @@ const Dashboard: React.FC = () => {
         file.description.toLowerCase().includes(query)
       );
     });
-  }, [activeTab, searchQuery]);
+  }, [workspaceCards, activeTab, searchQuery]);
 
   const emptyStateMessage =
     activeTab === "trash"
       ? "Your trash is empty."
-      : "Nothing to show here yet.";
+      : "No workspaces yet. Create a new one to get started.";
 
   useEffect(() => {
     if (!isAccountMenuOpen) return;
@@ -170,6 +283,35 @@ const Dashboard: React.FC = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isAccountMenuOpen]);
 
+  const handleCreateWorkspace = useCallback(async () => {
+    if (!window.workspace) {
+      setWorkspaceError(
+        "Workspace bridge not ready yet. Try quitting and reopening the desktop app."
+      );
+      return;
+    }
+
+    try {
+      const created = await window.workspace.create({
+        name: `Workspace ${workspaces.length + 1}`,
+      });
+      await refreshWorkspaces();
+      navigate(`/workspace/${created.id}`);
+    } catch (err) {
+      console.error("[dashboard] create workspace failed", err);
+      setWorkspaceError(
+        "Unable to create a workspace. Please confirm the app has access to your Documents folder or try again after relaunching."
+      );
+    }
+  }, [navigate, refreshWorkspaces, workspaces.length]);
+
+  const handleOpenWorkspace = useCallback(
+    (workspaceId: string) => {
+      navigate(`/workspace/${workspaceId}`);
+    },
+    [navigate]
+  );
+
   const handleSignOut = () => {
     setIsAccountMenuOpen(false);
     navigate("/");
@@ -182,7 +324,7 @@ const Dashboard: React.FC = () => {
           <span className="logo-text">BROS2</span>
         </div>
 
-        <button className="drive-dashboard__new-button">
+        <button className="drive-dashboard__new-button" onClick={handleCreateWorkspace}>
           <FiPlus size={18} />
           New
         </button>
@@ -321,12 +463,24 @@ const Dashboard: React.FC = () => {
               {activeTab === "trash"
                 ? "Recently removed"
                 : activeTab === "recent"
-                ? "Recent files"
-                : "Suggested files"}
+                ? "Recent workspaces"
+                : "Your workspaces"}
             </h2>
+            {loadingWorkspaces && (
+              <span className="drive-dashboard__status">Loading…</span>
+            )}
           </div>
 
-          {visibleFiles.length === 0 ? (
+          {workspaceError && (
+            <div className="drive-dashboard__error">{workspaceError}</div>
+          )}
+
+          {loadingWorkspaces ? (
+            <div className="drive-dashboard__empty">
+              <p>Loading your workspaces…</p>
+              <span>Hang tight while we scan your local workspace folder.</span>
+            </div>
+          ) : visibleFiles.length === 0 ? (
             <div className="drive-dashboard__empty">
               <p>{emptyStateMessage}</p>
               <span>Try adjusting your search or upload new content.</span>
@@ -334,7 +488,19 @@ const Dashboard: React.FC = () => {
           ) : viewMode === "grid" ? (
             <div className="drive-dashboard__file-grid">
               {visibleFiles.map((file) => (
-                <article key={file.id} className="drive-dashboard__file-card">
+                <article
+                  key={file.workspaceId}
+                  className="drive-dashboard__file-card"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => handleOpenWorkspace(file.workspaceId)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      handleOpenWorkspace(file.workspaceId);
+                    }
+                  }}
+                >
                   <div
                     className="drive-dashboard__file-badge"
                     style={{ backgroundColor: file.color }}
@@ -361,7 +527,11 @@ const Dashboard: React.FC = () => {
               </thead>
               <tbody>
                 {visibleFiles.map((file) => (
-                  <tr key={file.id}>
+                  <tr
+                    key={file.workspaceId}
+                    onClick={() => handleOpenWorkspace(file.workspaceId)}
+                    className="drive-dashboard__row-button"
+                  >
                     <td>
                       <span
                         className="drive-dashboard__file-table-badge"

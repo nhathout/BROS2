@@ -40,6 +40,7 @@
   "include": [
     "src/main.ts",
     "src/preload.ts",
+    "src/shared/**/*",
     "src/remote/**/*",
     "src/renderer/runtime/**/*.ts"
   ],

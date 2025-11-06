@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { randomUUID } from "node:crypto";
 import * as electron from "electron"; // ✅ NOTE: namespace import
 import type { BrowserWindow } from "electron";
 import express from "express";
@@ -8,6 +9,7 @@ import dotenv from "dotenv";
 import type { BlockGraph } from "@bros2/ui";
 import type { IR } from "@bros2/shared";
 import type { Runner as RunnerInstance } from "@bros2/runner";
+import type { WorkspaceDocument, WorkspaceSummary } from "./shared/workspace";
 
 const { app, ipcMain, shell, BrowserWindow: BrowserWindowCtor } = electron;
 
@@ -19,6 +21,46 @@ type ValidateIrFn = typeof import("@bros2/validation")["validateIR"];
 let runner: RunnerInstance | null = null;
 let runnerProjectKey: string | null = null;
 let mainWindow: BrowserWindow | null = null;
+
+let workspaceRoot: string | null = null;
+
+function resolveWorkspaceRoot(): string {
+  if (workspaceRoot) return workspaceRoot;
+
+  const candidates = [
+    path.join(app.getPath("documents"), "BROS2", "workspaces"),
+    path.join(app.getPath("userData"), "workspaces"),
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      fs.mkdirSync(candidate, { recursive: true });
+      workspaceRoot = candidate;
+      if (candidate !== candidates[0]) {
+        console.warn(
+          `[workspace] Falling back to userData directory: ${candidate}. Documents directory was not accessible.`
+        );
+      }
+      return workspaceRoot;
+    } catch (err: any) {
+      if (err?.code === "EACCES" || err?.code === "EPERM") {
+        console.warn(
+          `[workspace] Cannot access ${candidate} (permission denied). Trying next fallback.`
+        );
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  throw new Error(
+    "Unable to create workspace directory. Please check filesystem permissions."
+  );
+}
+
+function workspaceFilePath(id: string) {
+  return path.join(resolveWorkspaceRoot(), `${id}.json`);
+}
 
 dotenv.config();
 
@@ -121,6 +163,87 @@ ipcMain.handle("ir:validate", async (_event, irData: IR) => {
   return validateIrFn(irData);
 });
 
+// --- IPC: Workspace storage ---
+ipcMain.handle("workspace:list", async () => {
+  const dir = resolveWorkspaceRoot();
+  try {
+    const entries = await fileSystem.readdir(dir);
+    const summaries: WorkspaceSummary[] = [];
+    for (const fileName of entries) {
+      if (!fileName.endsWith(".json")) continue;
+      const raw = await fileSystem.readFile(path.join(dir, fileName), "utf-8");
+      try {
+        const doc = JSON.parse(raw) as WorkspaceDocument;
+        summaries.push({
+          id: doc.id,
+          name: doc.name,
+          createdAt: doc.createdAt,
+          updatedAt: doc.updatedAt,
+        });
+      } catch (err) {
+        console.warn(`[workspace] Failed to parse ${fileName}:`, err);
+      }
+    }
+    summaries.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+    return summaries;
+  } catch (err) {
+    console.error("[workspace:list] failed:", err);
+    throw err;
+  }
+});
+
+ipcMain.handle(
+  "workspace:create",
+  async (
+    _event,
+    payload: { name?: string; template?: Partial<WorkspaceDocument> | null; meta?: WorkspaceDocument["meta"] } = {}
+  ) => {
+    const dir = resolveWorkspaceRoot();
+    const now = new Date().toISOString();
+    const id = randomUUID();
+
+    const template = payload?.template ?? null;
+
+    const baseDoc: WorkspaceDocument = {
+      id,
+      name: payload?.name?.trim() || template?.name?.trim() || "Untitled Workspace",
+      createdAt: now,
+      updatedAt: now,
+      nodes: template?.nodes ?? [],
+      meta: template?.meta ?? payload?.meta ?? undefined,
+    };
+
+    const filePath = workspaceFilePath(id);
+    await fileSystem.writeFile(filePath, JSON.stringify(baseDoc, null, 2), "utf-8");
+    return baseDoc;
+  }
+);
+
+ipcMain.handle("workspace:load", async (_event, id: string) => {
+  if (!id) throw new Error("workspace:load requires an id");
+  const filePath = workspaceFilePath(id);
+  const raw = await fileSystem.readFile(filePath, "utf-8");
+  return JSON.parse(raw) as WorkspaceDocument;
+});
+
+ipcMain.handle(
+  "workspace:save",
+  async (_event, payload: { id: string; data: WorkspaceDocument }) => {
+    const { id, data } = payload || ({} as { id: string; data: WorkspaceDocument });
+    if (!id || !data) throw new Error("workspace:save requires an id and data payload");
+
+    const nextDoc: WorkspaceDocument = {
+      ...data,
+      id,
+      updatedAt: new Date().toISOString(),
+    };
+
+    const filePath = workspaceFilePath(id);
+    await fileSystem.writeFile(filePath, JSON.stringify(nextDoc, null, 2), "utf-8");
+    return nextDoc;
+  }
+);
+
 // --- IPC: OAuth Login ---
 ipcMain.handle("oauth-login", async () => {
   const CLIENT_ID = process.env.GITHUB_CLIENT_ID!;
@@ -215,6 +338,7 @@ ipcMain.handle("oauth-login-google", async () => {
 
 // --- App lifecycle ---
 app.whenReady().then(() => {
+  resolveWorkspaceRoot();
   createWindow();
 
   app.on("activate", () => {
@@ -225,3 +349,4 @@ app.whenReady().then(() => {
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
 });
+const fileSystem = fs.promises;

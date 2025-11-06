@@ -8,6 +8,7 @@ import {
 import LandingPage from "./pages/LandingPage";
 import AuthPage from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
+import WorkspacePage from "./pages/Workspace";
 import { AnimatePresence, motion } from "framer-motion";
 import React from "react";
 
@@ -100,6 +101,25 @@ function AnimatedRoutes({ handleLoginGitHub, handleLoginGoogle }: any) {
                 }}
               >
                 <Dashboard />
+              </motion.div>
+            }
+          />
+          <Route
+            path="/workspace/:id"
+            element={
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.6, ease: "easeInOut" }}
+                style={{
+                  position: "absolute",
+                  width: "100%",
+                  height: "100%",
+                  background: "#050505",
+                }}
+              >
+                <WorkspacePage />
               </motion.div>
             }
           />
