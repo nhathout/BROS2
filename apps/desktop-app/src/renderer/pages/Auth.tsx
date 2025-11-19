@@ -47,7 +47,12 @@ const AuthPage: React.FC<Props> = ({ onLoginGitHub, onLoginGoogle }) => {
             onChange={(e) => setPwd(e.target.value)}
           />
 
-          <button className="login-btn">Log In</button>
+          <button
+            className="login-btn"
+            onClick={() => navigate("/dashboard")}
+          >
+            Log In
+          </button>
 
           <div className="divider"><span>Or login with</span></div>
 
