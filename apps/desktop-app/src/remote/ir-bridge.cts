@@ -1,25 +1,13 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { ExecResult } from "@bros2/runner";
 import type { IR } from "@bros2/shared";
 import type { BlockGraph } from "@bros2/ui";
 import type { ValidationResult } from "@bros2/validation";
-
-interface RunnerBridge {
-  up(projectName: string): Promise<void>;
-  exec(command: string): Promise<ExecResult>;
-  down(): Promise<void>;
-}
+import type { ExecResult } from "@bros2/runner";
 
 interface IRBridge {
   build(graph: BlockGraph): Promise<{ ir: IR; issues: string[] }>;
   validate(ir: IR): Promise<ValidationResult>;
 }
-
-const runnerBridge: RunnerBridge = {
-  up: (projectName: string) => ipcRenderer.invoke("runner:up", projectName),
-  exec: (command: string) => ipcRenderer.invoke("runner:exec", command),
-  down: () => ipcRenderer.invoke("runner:down"),
-};
 
 const irBridge: IRBridge = {
   build: (graph: BlockGraph) => ipcRenderer.invoke("ir:build", graph),
@@ -33,8 +21,21 @@ const electronBridge = {
   loginGoogle: (): Promise<OAuthResponse> => ipcRenderer.invoke("oauth-login-google"),
 };
 
-contextBridge.exposeInMainWorld("runner", runnerBridge);
-contextBridge.exposeInMainWorld("ir", irBridge);
-contextBridge.exposeInMainWorld("electron", electronBridge);
+function safeExpose(key: string, api: Record<string, unknown>) {
+  try {
+    contextBridge.exposeInMainWorld(key, api);
+  } catch (err: any) {
+    if (err?.message?.includes("Cannot bind an API on top of an existing property")) return;
+    throw err;
+  }
+}
+
+safeExpose("runner", {
+  up: (projectName: string) => ipcRenderer.invoke("runner:up", projectName),
+  exec: (command: string) => ipcRenderer.invoke("runner:exec", command),
+  down: () => ipcRenderer.invoke("runner:down"),
+});
+safeExpose("ir", irBridge as unknown as Record<string, unknown>);
+safeExpose("electron", electronBridge as unknown as Record<string, unknown>);
 
 console.info("[preload] runner + IR bridge loaded");

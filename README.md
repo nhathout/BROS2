@@ -190,15 +190,15 @@ The preload now exposes `window.runtime` alongside the runner and IR bridges. Wi
 
 ```js
 typeof window.runtime; // "object"
-const pub = window.runtime.create("ArrowKeyPub", { topic: "keys/arrows" });
-const sub = window.runtime.create("ConsoleSub", { topic: "keys/arrows" });
-window.runtime.start(pub.id);
-window.runtime.start(sub.id);
+const pubId = window.runtime.create("ArrowKeyPub", { topic: "keys/arrows" });
+const subId = window.runtime.create("ConsoleSub", { topic: "keys/arrows" });
+window.runtime.start(pubId);
+window.runtime.start(subId);
 // Press arrow keys while the Electron window is focused:
 // [publish] keys/arrows <- { key: "left", ts: ... }
 // [node:ConsoleSub_1] received from ArrowKeyPub_1: {"key":"left","ts":...}
-window.runtime.stop(sub.id);
-window.runtime.stop(pub.id);
+window.runtime.stop(subId);
+window.runtime.stop(pubId);
 window.runtime.list(); // ["ArrowKeyPub_1", "ConsoleSub_1"]
 ```
 
