@@ -1,4 +1,4 @@
-<p align="left">
+<p align="center">
   <img src="assets/logos/BROS2-logo-long.png" alt="BROS2 logo" width="440">
 </p>
 
@@ -23,9 +23,7 @@ Verify Docker access before continuing:
 docker ps
 ```
 
-## Quick Dev Loop (tl;dr)
-
-For day-to-day hacking from the repo root:
+## Quick Dev Loop
 
 1. Select Node 20.19.x
 
@@ -34,12 +32,14 @@ For day-to-day hacking from the repo root:
    nvm use 20.19.0
    ```
 
-2. Refresh deps + clean old builds when needed:
+2. Refresh deps (clean if things feel stale):
 
    ```bash
    pnpm install -r
-   pnpm -r clean && pnpm -r build   # optional but ensures fresh dist/ files
+   pnpm -r clean   # optional, only if builds seem out of date
    ```
+
+   If you did clean, run the workspace builds in the Daily Development section (step 3) before moving on below.
 
 3. Build the ROS image once per machine (safe to rerun):
 
@@ -47,20 +47,26 @@ For day-to-day hacking from the repo root:
    pnpm --filter ./apps/desktop-app ros:build-image
    ```
 
-4. Launch the desktop dev stack (Electron main + Vite renderer):
+4. Regenerate the Electron main + preload bundle (needed after a clean):
+
+   ```bash
+   pnpm --filter ./apps/desktop-app build:main
+   ```
+
+5. Launch the desktop dev stack (Electron main + Vite renderer):
 
    ```bash
    pnpm --filter ./apps/desktop-app dev
    ```
 
-5. In Electron DevTools, bring up ROS 2 + rosbridge when you need it:
+6. In Electron DevTools, bring up ROS 2 + rosbridge when you need it:
 
    ```js
    await window.runner.up("hello_ros");
    await window.runner.exec('bash -lc "source /opt/ros/humble/setup.bash && ros2 launch rosbridge_server rosbridge_websocket_launch.xml"');
    ```
 
-Skip to the sections below for the full workflow details.
+Skip to the sections below for the full workflow details and tests.
 
 ## First-Time Setup
 
@@ -93,7 +99,7 @@ It launches the packaged app once everything compiles. If the script adds an `nv
    pnpm install -r
    ```
 
-3. **Build the workspace libraries** so their `.d.ts` files exist for the Electron main process. Run each filter separately from the repo root (brace expansion is not supported):
+3. **Build the workspace libraries** (run this after changing any of these packages so their `.d.ts` files stay fresh for Electron main):
 
    ```bash
    pnpm --filter @bros2/runtime build
@@ -161,7 +167,7 @@ await window.runner.exec("ros2 pkg list | head -n 5");
 await window.runner.down();
 ```
 
-This spins up the `bros_hello_ros` container defined in `Projects/hello_ros` and exercises the ROS 2 CLI.
+This spins up the `bros2_hello_ros` container defined in `Projects/hello_ros` and exercises the ROS 2 CLI.
 
 ### IR build + validation example
 
@@ -184,15 +190,15 @@ The preload now exposes `window.runtime` alongside the runner and IR bridges. Wi
 
 ```js
 typeof window.runtime; // "object"
-const pubId = window.runtime.create("ArrowKeyPub", { topic: "keys/arrows" });
-const subId = window.runtime.create("ConsoleSub", { topic: "keys/arrows" });
-window.runtime.start(pubId);
-window.runtime.start(subId);
+const pub = window.runtime.create("ArrowKeyPub", { topic: "keys/arrows" });
+const sub = window.runtime.create("ConsoleSub", { topic: "keys/arrows" });
+window.runtime.start(pub.id);
+window.runtime.start(sub.id);
 // Press arrow keys while the Electron window is focused:
 // [publish] keys/arrows <- { key: "left", ts: ... }
 // [node:ConsoleSub_1] received from ArrowKeyPub_1: {"key":"left","ts":...}
-window.runtime.stop(subId);
-window.runtime.stop(pubId);
+window.runtime.stop(sub.id);
+window.runtime.stop(pub.id);
 window.runtime.list(); // ["ArrowKeyPub_1", "ConsoleSub_1"]
 ```
 
@@ -243,8 +249,6 @@ If `window.runtime` is missing, run `pnpm --filter ./apps/desktop-app build:main
    ```bash
    pnpm -r build
    ```
-
-   You may ignore macOS code-sign warnings on local development machines.
 
 ## Supporting docs
 
