@@ -1,0 +1,1 @@
+docker build -t bros2/ros2-humble:latest .

@@ -5,38 +5,9 @@
 
 // 1) Load side-effect bridges (CJS) so window.ir, window.runner, window.runtime are defined.
 // These modules execute their contextBridge.exposeInMainWorld(...) calls.
-import path from "path";
-import fs from "fs";
-
-function loadBridge(filename: string) {
-  const candidates = [
-    path.join(__dirname, "remote", filename),
-    path.join(__dirname, "..", "dist", "remote", filename),
-    path.join(__dirname, "..", "src", "remote", filename),
-  ];
-
-  for (const candidate of candidates) {
-    if (!fs.existsSync(candidate)) continue;
-    try {
-      require(candidate);
-      return;
-    } catch (err: any) {
-      // Electron throws when a bridge tries to overwrite an existing property (e.g., runner).
-      if (err?.message?.includes("Cannot bind an API on top of an existing property")) {
-        return;
-      }
-      if (err?.code !== "MODULE_NOT_FOUND") {
-        console.warn(`[preload] failed loading ${candidate}:`, err);
-        return;
-      }
-    }
-  }
-
-  console.warn(`[preload] bridge ${filename} not found; tried`, candidates);
-}
-
-loadBridge("ir-bridge.cjs");
-loadBridge("runtime-bridge.cjs");
+import "./remote/ir-bridge.cjs";
+import "./remote/runner-bridge.cjs";
+import "./remote/runtime-bridge.cjs";
 
 // 2) Keep your existing OAuth helpers under window.electron
 import { contextBridge, ipcRenderer } from "electron";

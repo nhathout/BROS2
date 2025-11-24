@@ -5,12 +5,20 @@ import { Runtime } from "@bros2/runtime";
 import type { NodeContext, NodeInstance } from "@bros2/runtime";
 import { ArrowKeyPub } from "./nodes/ArrowKeyPub";
 import { ConsoleSub } from "./nodes/ConsoleSub";
+import { Forwarder } from "./nodes/Forwarder";
+import { RosbridgeBridge } from "./nodes/RosbridgeBridge";
 
 type Factory = (ctx: NodeContext, config?: any) => NodeInstance;
 
-export const registry: Record<string, Factory> = {
+const baseRegistry: Record<string, Factory> = {
   ArrowKeyPub: (ctx, config) => new ArrowKeyPub(ctx, config),
-  ConsoleSub: (ctx, config) => new ConsoleSub(ctx, config),
+  ConsoleSub: (ctx, config) => new ConsoleSub(ctx, config)
+};
+
+export const registry: Record<string, Factory> = {
+  ...baseRegistry,
+  RosbridgeBridge: (ctx, config) => new RosbridgeBridge(ctx, config),
+  Forwarder: (ctx, config) => new Forwarder(ctx, config)
 };
 
 export const runtime = new Runtime(registry);

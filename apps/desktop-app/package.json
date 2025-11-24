@@ -14,6 +14,7 @@
     "build:renderer": "vite build --config src/renderer/vite.config.ts",
     "start": "cross-env NODE_ENV=production electron ./dist/main.js",
     "clean": "rimraf dist release tsconfig.main.tsbuildinfo",
+    "ros:build-image": "docker build -t bros2/ros2-humble:latest ../../packages/services/runner/images/ros2-humble",
     "typecheck": "pnpm tsc -b tsconfig.main.json && pnpm tsc --noEmit -p tsconfig.renderer.json",
     "postinstall": "electron-builder install-app-deps"
   },

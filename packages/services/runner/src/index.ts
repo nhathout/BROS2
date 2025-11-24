@@ -6,7 +6,9 @@ import { composeDown, composeUp, ensureImage, execInContainer } from "./docker.j
 import { writeComposeFile } from "./compose.js";
 import type { ExecResult, LogFn, RunnerOptions } from "./types.js";
 
-const DEFAULT_IMAGE = "ros:humble";
+const DEFAULT_IMAGE = "bros2/ros2-humble:latest";
+const ROSBRIDGE_PORT = 9090;
+const CONTAINER_PREFIX = "bros2_";
 const PROJECT_ROOT = path.join(os.homedir(), "BROS2", "Projects");
 
 function sanitizeProjectId(input: string): string {
@@ -41,7 +43,7 @@ export class Runner {
     this.projectId = sanitizeProjectId(options.projectName);
     this.workspaceHostPath = path.resolve(options.workspaceHostPath);
     this.image = options.image ?? DEFAULT_IMAGE;
-    this.containerName = `bros_${this.projectId}`;
+    this.containerName = `${CONTAINER_PREFIX}${this.projectId}`;
     this.composeFilePath = path.join(path.dirname(this.workspaceHostPath), "docker-compose.yml");
   }
 
@@ -61,7 +63,8 @@ export class Runner {
     await writeComposeFile({
       containerName: this.containerName,
       workspaceHostPath: this.workspaceHostPath,
-      image: this.image
+      image: this.image,
+      ports: [{ host: ROSBRIDGE_PORT, container: ROSBRIDGE_PORT }]
     });
 
     await ensureImage(this.image, imageLog);
