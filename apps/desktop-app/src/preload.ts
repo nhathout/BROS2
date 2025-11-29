@@ -42,4 +42,23 @@ safeExpose("workspace", {
   load: (id: string): Promise<WorkspaceDocument> => ipcRenderer.invoke("workspace:load", id),
   save: (id: string, data: WorkspaceDocument): Promise<WorkspaceDocument> =>
     ipcRenderer.invoke("workspace:save", { id, data }),
+  storageList: (): Promise<
+    Array<{
+      id: string;
+      name: string;
+      path: string;
+      bytes: number;
+    }>
+  > => ipcRenderer.invoke("workspace:storageList"),
+});
+
+safeExpose("folder", {
+  list: (): Promise<Array<{ name: string; path: string; fullPath: string }>> =>
+    ipcRenderer.invoke("folder:list"),
+  create: (name: string, parent?: string | null): Promise<{ name: string; path: string; fullPath: string }> =>
+    ipcRenderer.invoke("folder:create", { name, parent }),
+  open: (folderPath: string): Promise<boolean> => ipcRenderer.invoke("folder:open", folderPath),
+  rename: (payload: { oldPath: string; newName: string }): Promise<{ name: string; path: string }> =>
+    ipcRenderer.invoke("folder:rename", payload),
+  trash: (folderPath: string): Promise<{ path: string }> => ipcRenderer.invoke("folder:trash", folderPath),
 });

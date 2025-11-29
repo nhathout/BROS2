@@ -21,6 +21,7 @@
   "build": {
     "appId": "com.bros2.desktop",
     "productName": "BROS2 Desktop",
+    "icon": "../../assets/logos/bros-logo-icon.ico",
     "directories": {
       "output": "release"
     },
@@ -30,6 +31,16 @@
       "package.json"
     ],
     "asar": true,
+    "extraResources": [
+      {
+        "from": "../../assets/logos/bros-logo-icon.ico",
+        "to": "bros-logo-icon.ico"
+      },
+      {
+        "from": "../../assets/logos/BROS2-logo.PNG",
+        "to": "BROS2-logo.PNG"
+      }
+    ],
     "mac": {
       "category": "public.app-category.developer-tools",
       "target": [
@@ -61,6 +72,7 @@
     "cross-env": "^10.1.0",
     "electron": "^39.0.0",
     "electron-builder": "^26.0.12",
+    "electron-devtools-installer": "^4.0.0",
     "rimraf": "^6.0.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.6.3",
@@ -72,6 +84,7 @@
     "@bros2/shared": "workspace:*",
     "@bros2/ui": "workspace:*",
     "@bros2/validation": "workspace:*",
+    "@xyflow/react": "^12.9.3",
     "bootstrap": "^5.3.8",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",

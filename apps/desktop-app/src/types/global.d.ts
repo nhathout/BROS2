@@ -3,6 +3,7 @@
 export {};
 
 import type { ExecResult } from "@bros2/runner";
+import type { WorkspaceDocument, WorkspaceSummary } from "../shared/workspace";
 
 declare global {
   interface Window {
@@ -26,6 +27,31 @@ declare global {
       startAll(): void;
       stopAll(): void;
       list(): string[];
+    };
+    workspace: {
+      list(): Promise<WorkspaceSummary[]>;
+      create(options?: {
+        name?: string;
+        template?: Partial<WorkspaceDocument> | null;
+        meta?: WorkspaceDocument["meta"];
+      }): Promise<WorkspaceDocument>;
+      load(id: string): Promise<WorkspaceDocument>;
+      save(id: string, data: WorkspaceDocument): Promise<WorkspaceDocument>;
+      storageList(): Promise<
+        Array<{
+          id: string;
+          name: string;
+          path: string;
+          bytes: number;
+        }>
+      >;
+    };
+    folder: {
+      list(): Promise<Array<{ name: string; path: string; fullPath: string }>>;
+      create(name: string, parent?: string | null): Promise<{ name: string; path: string; fullPath: string }>;
+      open(path: string): Promise<boolean>;
+      rename(payload: { oldPath: string; newName: string }): Promise<{ name: string; path: string }>;
+      trash(path: string): Promise<{ path: string }>;
     };
   }
 }

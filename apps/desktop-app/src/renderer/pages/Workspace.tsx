@@ -1,27 +1,41 @@
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  ReactFlowProvider,
+  ReactFlow,
+  Background,
+  Controls,
+  MiniMap,
+  addEdge,
+  useEdgesState,
+  useNodesState,
+  MarkerType,
+  Handle,
+  Position,
+  type ReactFlowInstance,
+  type Connection,
+  type Edge,
+  type Node,
+  type NodeProps,
+  type OnSelectionChangeFunc,
+  type CoordinateExtent,
+} from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
 import type { IconType } from "react-icons";
 import {
-  FiCamera,
-  FiCpu,
+  FiChevronLeft,
   FiCommand,
   FiDatabase,
+  FiEdit2,
   FiMap,
-  FiTarget,
-  FiZap,
   FiPlay,
-  FiChevronLeft,
   FiSave,
   FiTrash2,
-  FiEdit2,
+  FiSun,
+  FiMoon,
 } from "react-icons/fi";
 import { useNavigate, useParams } from "react-router-dom";
 import type { WorkspaceDocument, WorkspaceNode } from "../../shared/workspace";
+import { runtime } from "../runtime/registry";
 import "../styles/Workspace.css";
 
 type PaletteItem = {
@@ -33,112 +47,128 @@ type PaletteItem = {
   defaultMeta?: WorkspaceNode["meta"];
 };
 
+type RosNodeData = {
+  label: string;
+  type: string;
+  color: string;
+  meta?: WorkspaceNode["meta"];
+};
+
+type FlowNode = Node<RosNodeData>;
+type WorkspaceMeta = (WorkspaceDocument["meta"] & { edges?: Edge[] }) | undefined;
+
 const randomNodeId = () =>
   globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2, 10);
 
+// Limit how far the viewport and nodes can move so the user stays on the grid.
+const WORKSPACE_EXTENT: CoordinateExtent = [
+  [0, 0],
+  [2400, 1600],
+];
+
 const nodeTypeColors: Record<string, string> = {
-  entry: "#38bdf8",
-  sensor: "#0ea5e9",
-  logic: "#f97316",
-  actuator: "#facc15",
-  transform: "#6366f1",
-  model: "#8b5cf6",
-  visualize: "#ec4899",
-  map: "#22d3ee",
-  costmap: "#14b8a6",
-  planner: "#34d399",
-  goal: "#f87171",
-  io: "#f472b6",
-  compute: "#c084fc",
+  ArrowKeyPub: "#38bdf8",
+  ConsoleSub: "#f97316",
+  RosbridgeBridge: "#c084fc",
+  Forwarder: "#22d3ee",
   default: "#a3a3a3",
 };
 
 const paletteGroups: Array<{ title: string; items: PaletteItem[] }> = [
   {
-    title: "Sensors & Inputs",
+    title: "Runtime Nodes",
     items: [
       {
-        id: "camera-feed",
-        label: "Camera Feed",
-        type: "sensor",
-        icon: FiCamera,
-        description: "Capture RGB frames from your vision rig.",
-      },
-      {
-        id: "lidar",
-        label: "LiDAR Sweep",
-        type: "sensor",
-        icon: FiTarget,
-        description: "360° point cloud from the LiDAR array.",
-      },
-      {
-        id: "map-loader",
-        label: "Map Loader",
-        type: "map",
-        icon: FiMap,
-        description: "Bring in saved maps or SLAM outputs.",
-      },
-    ],
-  },
-  {
-    title: "Processing",
-    items: [
-      {
-        id: "preprocess",
-        label: "Preprocess",
-        type: "transform",
-        icon: FiCpu,
-        description: "Normalize, crop, and clean sensor data.",
-      },
-      {
-        id: "detector",
-        label: "Object Detector",
-        type: "model",
+        id: "ArrowKeyPub",
+        label: "Arrow Keys Publisher",
+        type: "ArrowKeyPub",
         icon: FiCommand,
-        description: "Run inference with your trained model.",
+        description: "Publishes arrow key presses onto the workspace bus.",
+        defaultMeta: { topic: "keys/arrows" },
       },
       {
-        id: "fusion",
-        label: "Sensor Fusion",
-        type: "logic",
+        id: "ConsoleSub",
+        label: "Console Subscriber",
+        type: "ConsoleSub",
         icon: FiDatabase,
-        description: "Combine inputs into a unified state.",
+        description: "Logs inbound messages from a topic to the console.",
+        defaultMeta: { topic: "keys/arrows" },
       },
-    ],
-  },
-  {
-    title: "Control & Outputs",
-    items: [
       {
-        id: "planner",
-        label: "Route Planner",
-        type: "planner",
+        id: "RosbridgeBridge",
+        label: "Rosbridge Bridge",
+        type: "RosbridgeBridge",
         icon: FiMap,
-        description: "Plan waypoints with costmaps and goals.",
+        description: "Connects to rosbridge and mirrors ROS publish/subscribe traffic.",
+        defaultMeta: { urls: ["ws://localhost:9090", "ws://127.0.0.1:9090"], retryMs: 2500 },
       },
       {
-        id: "goal-dispatch",
-        label: "Goal Dispatch",
-        type: "goal",
+        id: "Forwarder",
+        label: "ROS Forwarder",
+        type: "Forwarder",
         icon: FiPlay,
-        description: "Send tasks to actuators or fleets.",
-      },
-      {
-        id: "actuator",
-        label: "Motor Driver",
-        type: "actuator",
-        icon: FiZap,
-        description: "Drive motors or servos with commands.",
+        description: "Forwards workspace bus messages into ROS topics.",
+        defaultMeta: { from: "keys/arrows", to: "/keys/arrows" },
       },
     ],
   },
 ];
 
-type DragState = {
-  id: string;
-  offsetX: number;
-  offsetY: number;
+const normalizePosition = (position?: WorkspaceNode["position"]): WorkspaceNode["position"] => {
+  if (!position || Number.isNaN(position.x) || Number.isNaN(position.y)) {
+    return { x: 140, y: 120 };
+  }
+  return {
+    x: Math.min(WORKSPACE_EXTENT[1][0], Math.max(WORKSPACE_EXTENT[0][0], position.x)),
+    y: Math.min(WORKSPACE_EXTENT[1][1], Math.max(WORKSPACE_EXTENT[0][1], position.y)),
+  };
 };
+
+const toFlowNode = (node: WorkspaceNode): FlowNode => ({
+  id: node.id,
+  type: "rosNode",
+  position: normalizePosition(node.position),
+  data: {
+    label: node.label || node.type,
+    type: node.type,
+    color: nodeTypeColors[node.type] ?? nodeTypeColors.default,
+    meta: node.meta ?? {},
+  },
+});
+
+const toWorkspaceNode = (node: FlowNode): WorkspaceNode => ({
+  id: node.id,
+  type: node.data?.type ?? "Node",
+  label: node.data?.label ?? node.data?.type ?? "Node",
+  position: node.position,
+  meta: node.data?.meta ?? {},
+});
+
+const RosNode: React.FC<NodeProps<FlowNode>> = ({ data, selected }) => (
+  <div
+    className={`workspace__rf-node ${selected ? "is-selected" : ""}`}
+    style={{ borderColor: data.color }}
+  >
+    <Handle
+      type="target"
+      position={Position.Left}
+      className="workspace__rf-handle"
+      style={{ background: data.color }}
+    />
+    <div className="workspace__rf-body">
+      <span className="workspace__rf-label">{data.label}</span>
+      <span className="workspace__rf-meta">{data.type}</span>
+    </div>
+    <Handle
+      type="source"
+      position={Position.Right}
+      className="workspace__rf-handle"
+      style={{ background: data.color }}
+    />
+  </div>
+);
+
+const rosNodeTypes = { rosNode: RosNode };
 
 const WorkspacePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -148,25 +178,69 @@ const WorkspacePage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [workspaceDoc, setWorkspaceDoc] = useState<WorkspaceDocument | null>(null);
   const [workspaceName, setWorkspaceName] = useState("");
-  const [workspaceMeta, setWorkspaceMeta] = useState<WorkspaceDocument["meta"] | undefined>(undefined);
-  const [nodes, setNodes] = useState<WorkspaceNode[]>([]);
+  const [workspaceMeta, setWorkspaceMeta] = useState<WorkspaceMeta>();
+  const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [savingState, setSavingState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [saveTimestamp, setSaveTimestamp] = useState<string | null>(null);
-  const [zoom, setZoom] = useState(1);
-  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const getStoredTheme = () => {
+    if (typeof window === "undefined") return "dark" as const;
+    const stored = window.localStorage?.getItem("bros2-theme");
+    return stored === "light" ? "light" : "dark";
+  };
+  const [theme, setTheme] = useState<"dark" | "light">(getStoredTheme);
 
-  const canvasRef = useRef<HTMLDivElement | null>(null);
-  const dragRef = useRef<DragState | null>(null);
+  const flowWrapperRef = useRef<HTMLDivElement | null>(null);
+  const rfInstanceRef = useRef<ReactFlowInstance<FlowNode, Edge> | null>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasHydratedRef = useRef(false);
-  const panRef = useRef<{
-    active: boolean;
-    startX: number;
-    startY: number;
-    originX: number;
-    originY: number;
-  }>({ active: false, startX: 0, startY: 0, originX: 0, originY: 0 });
+  const lastSavedSigRef = useRef<string | null>(null);
+  const runtimeNodesRef = useRef<Map<string, { type: string; metaSig: string }>>(new Map());
+
+  const workspaceNodes = useMemo(() => nodes.map(toWorkspaceNode), [nodes]);
+  const selectedNode = useMemo(
+    () => nodes.find((node) => node.id === selectedNodeId) ?? null,
+    [nodes, selectedNodeId]
+  );
+
+  const ensureUniqueNameInFolder = useCallback(
+    async (desired: string) => {
+      const list = (await window.workspace.list()) ?? [];
+      const folderKey = (workspaceMeta?.folder ?? "").trim();
+      const names = new Set(
+        list
+          .filter((ws) => (ws.meta?.folder ?? "") === folderKey && ws.id !== workspaceDoc?.id)
+          .map((ws) => ws.name)
+      );
+      const base = desired.trim() || "Untitled Workspace";
+      if (!names.has(base)) return base;
+      let counter = 2;
+      while (true) {
+        const candidate = `${base} (${counter})`;
+        if (!names.has(candidate)) return candidate;
+        counter += 1;
+      }
+    },
+    [workspaceDoc?.id, workspaceMeta?.folder]
+  );
+  const backgroundGridColor = theme === "light" ? "rgba(15, 23, 42, 0.7)" : "rgba(148, 163, 184, 0.2)";
+  const backgroundGridBg = theme === "light" ? "#f2f4f7" : "transparent";
+  const workspaceSig = useMemo(
+    () =>
+      JSON.stringify({
+        name: workspaceName.trim(),
+        meta: workspaceMeta ?? {},
+        nodes: workspaceNodes,
+      }),
+    [workspaceMeta, workspaceName, workspaceNodes]
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage?.setItem("bros2-theme", theme);
+    document.body.classList.toggle("theme-light", theme === "light");
+  }, [theme]);
 
   useEffect(() => {
     if (!id) {
@@ -175,65 +249,90 @@ const WorkspacePage: React.FC = () => {
       return;
     }
 
-    let isMounted = true;
-
-    (async () => {
+    let cancelled = false;
+    const loadWorkspace = async () => {
       try {
         setLoading(true);
         const doc = await window.workspace.load(id);
-        if (!isMounted) return;
+        if (cancelled) return;
+        const loadedNodes = (doc.nodes ?? []).map(toFlowNode);
+        const loadedEdges = ((doc.meta as WorkspaceMeta)?.edges ?? []) as Edge[];
+
         setWorkspaceDoc(doc);
         setWorkspaceName(doc.name);
-        setWorkspaceMeta(doc.meta ?? {});
-        setNodes(doc.nodes ?? []);
-        setSelectedNodeId(doc.nodes?.[0]?.id ?? null);
-        setError(null);
+        setWorkspaceMeta({ ...(doc.meta ?? {}), edges: loadedEdges });
+        setNodes(loadedNodes);
+        setEdges(loadedEdges);
+        setSelectedNodeId(loadedNodes[0]?.id ?? null);
         setSaveTimestamp(doc.updatedAt);
+        setError(null);
+        lastSavedSigRef.current = JSON.stringify({
+          name: doc.name,
+          meta: { ...(doc.meta ?? {}), edges: loadedEdges },
+          nodes: doc.nodes ?? [],
+        });
       } catch (err) {
         console.error("[workspace] failed to load", err);
-        if (isMounted) {
+        if (!cancelled) {
           setError("We couldn’t open this workspace. It may have been moved or deleted.");
         }
       } finally {
-        if (isMounted) setLoading(false);
+        if (!cancelled) setLoading(false);
       }
-    })();
-
-    return () => {
-      isMounted = false;
     };
-  }, [id]);
+
+    void loadWorkspace();
+    return () => {
+      cancelled = true;
+    };
+  }, [id, setEdges, setNodes]);
 
   const saveWorkspace = useCallback(async () => {
     if (!workspaceDoc) return;
     setSavingState("saving");
     try {
+      const uniqueName = await ensureUniqueNameInFolder(workspaceName);
       const payload: WorkspaceDocument = {
         ...workspaceDoc,
-        name: workspaceName.trim() || "Untitled Workspace",
-        nodes,
-        meta: workspaceMeta,
+        name: uniqueName,
+        nodes: workspaceNodes,
+        meta: { ...(workspaceMeta ?? {}), edges } as WorkspaceDocument["meta"],
       };
       const saved = await window.workspace.save(workspaceDoc.id, payload);
       setWorkspaceDoc(saved);
+      setWorkspaceName(saved.name);
       setSaveTimestamp(saved.updatedAt);
       setSavingState("saved");
+      lastSavedSigRef.current = workspaceSig;
     } catch (err) {
       console.error("[workspace] save failed", err);
       setSavingState("error");
     }
-  }, [nodes, workspaceDoc, workspaceMeta, workspaceName]);
+  }, [edges, ensureUniqueNameInFolder, workspaceDoc, workspaceMeta, workspaceName, workspaceNodes, workspaceSig]);
 
   useEffect(() => {
     if (!workspaceDoc) return;
     if (!hasHydratedRef.current) {
       hasHydratedRef.current = true;
+      lastSavedSigRef.current ??= workspaceSig;
       return;
     }
-    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+
+    // Only save when there is a meaningful change.
+    if (lastSavedSigRef.current === workspaceSig) {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
+      }
+      return;
+    }
+
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
     saveTimeoutRef.current = setTimeout(() => {
       void saveWorkspace();
-    }, 900);
+    }, 850);
 
     return () => {
       if (saveTimeoutRef.current) {
@@ -241,15 +340,238 @@ const WorkspacePage: React.FC = () => {
         saveTimeoutRef.current = null;
       }
     };
-  }, [nodes, workspaceMeta, workspaceName, saveWorkspace, workspaceDoc]);
+  }, [workspaceDoc, workspaceSig, saveWorkspace]);
 
   useEffect(() => {
     if (savingState === "saved") {
-      const timeout = setTimeout(() => setSavingState("idle"), 2000);
+      const timeout = setTimeout(() => setSavingState("idle"), 1800);
       return () => clearTimeout(timeout);
     }
     return undefined;
   }, [savingState]);
+
+  useEffect(() => {
+    if (!nodes.length || !rfInstanceRef.current) return;
+    rfInstanceRef.current.fitView({ padding: 0.2, duration: 320 });
+  }, [nodes.length]);
+
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
+      }
+    };
+  }, []);
+
+  const handleSelectionChange = useCallback<OnSelectionChangeFunc<FlowNode, Edge>>(
+    ({ nodes: selectedNodes }) => {
+      setSelectedNodeId(selectedNodes?.[0]?.id ?? null);
+    },
+    []
+  );
+
+  const handleConnect = useCallback(
+    (connection: Connection) => {
+      setEdges((eds) =>
+        addEdge(
+          {
+            ...connection,
+            type: "smoothstep",
+            animated: true,
+            style: { stroke: "#7dd3fc", strokeWidth: 2 },
+            markerEnd: { type: MarkerType.ArrowClosed, width: 18, height: 18, color: "#7dd3fc" },
+          },
+          eds
+        )
+      );
+    },
+    [setEdges]
+  );
+
+  useEffect(() => {
+    setWorkspaceMeta((prev) => ({ ...(prev ?? {}), edges }));
+  }, [edges]);
+
+  const handleAddNode = useCallback(
+    (item: PaletteItem) => {
+      const newId = randomNodeId();
+      setNodes((prev) => {
+        const basePosition = { x: 220 + prev.length * 32, y: 180 + prev.length * 22 };
+        if (rfInstanceRef.current && flowWrapperRef.current) {
+          const bounds = flowWrapperRef.current.getBoundingClientRect();
+          const projected = rfInstanceRef.current.screenToFlowPosition({
+            x: bounds.left + bounds.width / 2,
+            y: bounds.top + bounds.height / 2,
+          });
+          basePosition.x = projected.x;
+          basePosition.y = projected.y;
+        }
+
+        const clampedPosition = {
+          x: Math.min(WORKSPACE_EXTENT[1][0], Math.max(WORKSPACE_EXTENT[0][0], basePosition.x)),
+          y: Math.min(WORKSPACE_EXTENT[1][1], Math.max(WORKSPACE_EXTENT[0][1], basePosition.y)),
+        };
+
+        const node: FlowNode = {
+          id: newId,
+          type: "rosNode",
+          position: clampedPosition,
+          data: {
+            label: item.label,
+            type: item.type,
+            color: nodeTypeColors[item.type] ?? nodeTypeColors.default,
+            meta: { ...item.defaultMeta, paletteId: item.id },
+          },
+        };
+
+        return [...prev, node];
+      });
+      setSelectedNodeId(newId);
+    },
+    [setNodes]
+  );
+
+  const handleNodeLabelChange = useCallback(
+    (id: string, value: string) => {
+      setNodes((prev) =>
+        prev.map((node) =>
+          node.id === id ? { ...node, data: { ...node.data, label: value } } : node
+        )
+      );
+    },
+    [setNodes]
+  );
+
+  const handleNodeTypeChange = useCallback(
+    (id: string, value: string) => {
+      setNodes((prev) =>
+        prev.map((node) =>
+          node.id === id
+            ? {
+                ...node,
+                data: {
+                  ...node.data,
+                  type: value,
+                  color: nodeTypeColors[value] ?? nodeTypeColors.default,
+                },
+              }
+            : node
+        )
+      );
+    },
+    [setNodes]
+  );
+
+  const handleNodeNotesChange = useCallback(
+    (id: string, value: string) => {
+      setNodes((prev) =>
+        prev.map((node) =>
+          node.id === id
+            ? {
+                ...node,
+                data: {
+                  ...node.data,
+                  meta: { ...(node.data.meta ?? {}), notes: value },
+                },
+              }
+            : node
+        )
+      );
+    },
+    [setNodes]
+  );
+
+  const handleDeleteNode = useCallback(() => {
+    if (!selectedNodeId) return;
+    setEdges((eds) =>
+      eds.filter((edge) => edge.source !== selectedNodeId && edge.target !== selectedNodeId)
+    );
+    setNodes((prev) => prev.filter((node) => node.id !== selectedNodeId));
+    setSelectedNodeId(null);
+  }, [selectedNodeId, setEdges, setNodes]);
+
+  useEffect(() => {
+    const runtimeMap = runtimeNodesRef.current;
+    const desired = new Map(workspaceNodes.map((node) => [node.id, node]));
+
+    for (const id of Array.from(runtimeMap.keys())) {
+      if (!desired.has(id)) {
+        runtime.stop(id);
+        runtimeMap.delete(id);
+      }
+    }
+
+    for (const node of workspaceNodes) {
+      const metaSig = JSON.stringify(node.meta ?? {});
+      const existing = runtimeMap.get(node.id);
+      if (existing && existing.type === node.type && existing.metaSig === metaSig) continue;
+      if (existing) {
+        runtime.stop(node.id);
+        runtimeMap.delete(node.id);
+      }
+
+      if (!runtime.has(node.type)) {
+        console.warn("[runtime] unknown node type; skipping:", node.type);
+        continue;
+      }
+
+      try {
+        let config: any = node.meta ?? {};
+        if (node.type === "Forwarder") {
+          const to = (node.meta as any)?.to ?? "/keys/arrows";
+          const from = (node.meta as any)?.from ?? "keys/arrows";
+          config = {
+            ...node.meta,
+            from,
+            to,
+            send: (topic: string, msg: any) => {
+              const bridge = (globalThis as any).__rosbridge__;
+              if (bridge?.publishRos) {
+                bridge.publishRos(topic, msg);
+              } else {
+                console.warn("[runtime] Forwarder has no rosbridge connection");
+              }
+            },
+          };
+        }
+        if (node.type === "RosbridgeBridge") {
+          const defaults = ["ws://localhost:9090", "ws://127.0.0.1:9090"];
+          const inferredHost =
+            typeof window !== "undefined" && window.location?.hostname
+              ? `ws://${window.location.hostname}:9090`
+              : null;
+          const urls = Array.from(
+            new Set(
+              [...(config.urls ?? []), config.url, inferredHost, ...defaults].filter(Boolean)
+            )
+          );
+          config = {
+            ...config,
+            urls,
+            retryMs: config.retryMs ?? 2500,
+          };
+        }
+
+        runtime.create(node.type, config, node.id);
+        runtime.start(node.id);
+        runtimeMap.set(node.id, { type: node.type, metaSig });
+      } catch (err) {
+        console.error("[runtime] failed to start node", node.type, err);
+      }
+    }
+  }, [workspaceNodes]);
+
+  useEffect(
+    () => () => {
+      const runtimeMap = runtimeNodesRef.current;
+      for (const id of runtimeMap.keys()) {
+        runtime.stop(id);
+      }
+      runtimeMap.clear();
+    },
+    []
+  );
 
   const handleSaveNow = useCallback(async () => {
     if (saveTimeoutRef.current) {
@@ -259,245 +581,11 @@ const WorkspacePage: React.FC = () => {
     await saveWorkspace();
   }, [saveWorkspace]);
 
-  const selectedNode = useMemo(
-    () => nodes.find((node) => node.id === selectedNodeId) ?? null,
-    [nodes, selectedNodeId]
-  );
-
-  const handleAddNode = useCallback(
-    (item: PaletteItem) => {
-      const canvas = canvasRef.current;
-      const defaultPosition = { x: 180, y: 140 };
-      if (canvas) {
-        const rect = canvas.getBoundingClientRect();
-        defaultPosition.x =
-          (rect.width / 2 - pan.x) / zoom - 120 + Math.random() * 80 - 40;
-        defaultPosition.y =
-          (rect.height / 2 - pan.y) / zoom - 80 + Math.random() * 80 - 40;
-      }
-
-      const node: WorkspaceNode = {
-        id: randomNodeId(),
-        type: item.type,
-        label: item.label,
-        position: {
-          x: Math.max(32, defaultPosition.x),
-          y: Math.max(32, defaultPosition.y),
-        },
-        meta: {
-          ...item.defaultMeta,
-          paletteId: item.id,
-        },
-      };
-
-      setNodes((prev) => [...prev, node]);
-      setSelectedNodeId(node.id);
-    },
-    [pan.x, pan.y, zoom]
-  );
-
-  const handlePanMove = useCallback((event: PointerEvent) => {
-    if (!panRef.current.active) return;
-    const deltaX = event.clientX - panRef.current.startX;
-    const deltaY = event.clientY - panRef.current.startY;
-    setPan({
-      x: panRef.current.originX + deltaX,
-      y: panRef.current.originY + deltaY,
-    });
-  }, []);
-
-  const stopPanning = useCallback(() => {
-    panRef.current.active = false;
-    window.removeEventListener("pointermove", handlePanMove);
-    window.removeEventListener("pointerup", stopPanning);
-  }, [handlePanMove]);
-
-  const handlePointerMove = useCallback(
-    (event: PointerEvent) => {
-      if (!dragRef.current || !canvasRef.current) return;
-      const rect = canvasRef.current.getBoundingClientRect();
-      const scale = zoom;
-      const { id: dragId, offsetX, offsetY } = dragRef.current;
-      const pointerX = (event.clientX - rect.left - pan.x) / scale;
-      const pointerY = (event.clientY - rect.top - pan.y) / scale;
-      const nextX = pointerX - offsetX;
-      const nextY = pointerY - offsetY;
-      const maxX = rect.width / scale - 200;
-      const maxY = rect.height / scale - 140;
-
-      setNodes((prev) =>
-        prev.map((node) =>
-          node.id === dragId
-            ? {
-                ...node,
-                position: {
-                  x: Math.max(24, Math.min(maxX, nextX)),
-                  y: Math.max(24, Math.min(maxY, nextY)),
-                },
-              }
-            : node
-        )
-      );
-    },
-    [zoom, pan.x, pan.y]
-  );
-
-  const stopDragging = useCallback(() => {
-    dragRef.current = null;
-    window.removeEventListener("pointermove", handlePointerMove);
-    window.removeEventListener("pointerup", stopDragging);
-  }, [handlePointerMove]);
-
-  const handleNodePointerDown = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>, node: WorkspaceNode) => {
-      event.stopPropagation();
-      event.preventDefault();
-      setSelectedNodeId(node.id);
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      const rect = canvas.getBoundingClientRect();
-      const scale = zoom;
-      const pointerX = (event.clientX - rect.left - pan.x) / scale;
-      const pointerY = (event.clientY - rect.top - pan.y) / scale;
-      dragRef.current = {
-        id: node.id,
-        offsetX: pointerX - node.position.x,
-        offsetY: pointerY - node.position.y,
-      };
-      window.addEventListener("pointermove", handlePointerMove);
-      window.addEventListener("pointerup", stopDragging);
-    },
-    [handlePointerMove, stopDragging, zoom, pan.x, pan.y]
-  );
-
-  const handleCanvasPointerDown = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      const target = event.target as HTMLElement;
-      const isNode = target.closest(".workspace__node");
-      const isPrimary = event.button === 0;
-      const isPanTrigger =
-        event.button === 1 ||
-        event.buttons === 4 ||
-        event.ctrlKey ||
-        event.metaKey ||
-        event.altKey ||
-        event.shiftKey;
-
-      if (!isNode) {
-        setSelectedNodeId(null);
-      }
-
-      const shouldPan = isPanTrigger || (!isNode && isPrimary);
-
-      if (shouldPan && canvasRef.current) {
-        event.preventDefault();
-        panRef.current = {
-          active: true,
-          startX: event.clientX,
-          startY: event.clientY,
-          originX: pan.x,
-          originY: pan.y,
-        };
-        window.addEventListener("pointermove", handlePanMove);
-        window.addEventListener("pointerup", stopPanning, { once: true });
-      }
-    },
-    [pan.x, pan.y, handlePanMove, stopPanning]
-  );
-
-  const updateZoom = useCallback((next: number) => {
-    setZoom((prev) => {
-      const clamped = Math.min(2, Math.max(0.5, typeof next === "number" ? next : prev));
-      return Math.round(clamped * 100) / 100;
-    });
-  }, []);
-
-  const handleWheel = useCallback(
-    (event: React.WheelEvent<HTMLDivElement>) => {
-      if (event.ctrlKey || event.metaKey) {
-        event.preventDefault();
-        const delta = event.deltaY > 0 ? -0.1 : 0.1;
-        updateZoom(zoom + delta);
-      } else {
-        event.preventDefault();
-        setPan((prev) => ({
-          x: prev.x - event.deltaX,
-          y: prev.y - event.deltaY,
-        }));
-      }
-    },
-    [updateZoom, zoom]
-  );
-
-  const handleZoomButton = useCallback(
-    (direction: "in" | "out" | "reset") => {
-      if (direction === "reset") {
-        updateZoom(1);
-      } else {
-        updateZoom(zoom + (direction === "in" ? 0.1 : -0.1));
-      }
-    },
-    [updateZoom, zoom]
-  );
-
-
   useEffect(() => {
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-        saveTimeoutRef.current = null;
-      }
-      window.removeEventListener("pointermove", handlePointerMove);
-      window.removeEventListener("pointerup", stopDragging);
-      window.removeEventListener("pointermove", handlePanMove);
-      window.removeEventListener("pointerup", stopPanning);
-    };
-  }, [handlePointerMove, stopDragging, handlePanMove, stopPanning]);
-
-  const updateNode = useCallback((id: string, updater: (node: WorkspaceNode) => WorkspaceNode) => {
-    setNodes((prev) =>
-      prev.map((node) => (node.id === id ? updater(node) : node))
-    );
-  }, []);
-
-  const handleNodeLabelChange = useCallback(
-    (id: string, value: string) => {
-      updateNode(id, (node) => ({
-        ...node,
-        label: value,
-      }));
-    },
-    [updateNode]
-  );
-
-  const handleNodeTypeChange = useCallback(
-    (id: string, value: string) => {
-      updateNode(id, (node) => ({
-        ...node,
-        type: value,
-      }));
-    },
-    [updateNode]
-  );
-
-  const handleNodeNotesChange = useCallback(
-    (id: string, value: string) => {
-      updateNode(id, (node) => ({
-        ...node,
-        meta: {
-          ...node.meta,
-          notes: value,
-        },
-      }));
-    },
-    [updateNode]
-  );
-
-  const handleDeleteNode = useCallback(() => {
-    if (!selectedNodeId) return;
-    setNodes((prev) => prev.filter((node) => node.id !== selectedNodeId));
-    setSelectedNodeId(null);
-  }, [selectedNodeId]);
+    if (selectedNodeId && !nodes.some((node) => node.id === selectedNodeId)) {
+      setSelectedNodeId(nodes[0]?.id ?? null);
+    }
+  }, [nodes, selectedNodeId]);
 
   const statusLabel = useMemo(() => {
     switch (savingState) {
@@ -516,7 +604,7 @@ const WorkspacePage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="workspace workspace--centered">
+      <div className={`workspace workspace--centered ${theme === "light" ? "theme-light" : ""}`}>
         <div className="workspace__loader">
           <span className="workspace__loader-dot" />
           <span className="workspace__loader-text">Loading workspace…</span>
@@ -527,7 +615,7 @@ const WorkspacePage: React.FC = () => {
 
   if (error || !workspaceDoc) {
     return (
-      <div className="workspace workspace--centered">
+      <div className={`workspace workspace--centered ${theme === "light" ? "theme-light" : ""}`}>
         <div className="workspace__error-card">
           <h2>Workspace unavailable</h2>
           <p>{error ?? "We couldn’t load this workspace."}</p>
@@ -544,245 +632,216 @@ const WorkspacePage: React.FC = () => {
   }
 
   return (
-    <div className="workspace">
-      <header className="workspace__topbar">
-        <button
-          type="button"
-          className="workspace__button workspace__button--ghost"
-          onClick={() => navigate("/dashboard")}
-        >
-          <FiChevronLeft size={16} />
-          Dashboard
-        </button>
-
-        <div className="workspace__title">
-          <FiEdit2 size={16} />
-          <input
-            value={workspaceName}
-            onChange={(event) => setWorkspaceName(event.target.value)}
-            placeholder="Untitled workspace"
-          />
-        </div>
-
-        <div
-          className={`workspace__status ${
-            savingState === "error"
-              ? "is-error"
-              : savingState === "saving"
-              ? "is-saving"
-              : ""
-          }`}
-        >
-          {statusLabel}
-        </div>
-
-        <div className="workspace__actions">
+    <ReactFlowProvider>
+      <div className={`workspace ${theme === "light" ? "theme-light" : ""}`}>
+        <header className="workspace__topbar">
           <button
             type="button"
-            className="workspace__button workspace__button--primary"
-            onClick={handleSaveNow}
-            disabled={savingState === "saving"}
+            className="workspace__button workspace__button--ghost"
+            onClick={() => navigate("/dashboard")}
           >
-            <FiSave size={16} />
-            Save now
+            <FiChevronLeft size={16} />
+            Dashboard
           </button>
-        </div>
-      </header>
 
-      <div className="workspace__body">
-        <aside className="workspace__panel workspace__panel--left">
-          <h3 className="workspace__panel-title">Blocks</h3>
-          {paletteGroups.map((group) => (
-            <div key={group.title} className="workspace__palette-group">
-              <h4>{group.title}</h4>
-              <div className="workspace__palette-items">
-                {group.items.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    className="workspace__palette-item"
-                    onClick={() => handleAddNode(item)}
-                  >
-                    <span className="workspace__palette-icon" data-type={item.type}>
-                      <item.icon size={18} />
-                    </span>
-                    <span>
-                      <strong>{item.label}</strong>
-                      <small>{item.description}</small>
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
-        </aside>
+          <div className="workspace__title">
+            <FiEdit2 size={16} />
+            <input
+              value={workspaceName}
+              onChange={(event) => setWorkspaceName(event.target.value)}
+              placeholder="Untitled workspace"
+            />
+          </div>
 
-        <section
-          ref={canvasRef}
-          className="workspace__canvas"
-          onPointerDown={handleCanvasPointerDown}
-          onWheel={handleWheel}
-          onContextMenu={(event) => event.preventDefault()}
-        >
           <div
-            className="workspace__canvas-surface"
-            style={{
-              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-              transformOrigin: "top left",
-            }}
+            className={`workspace__status ${
+              savingState === "error"
+                ? "is-error"
+                : savingState === "saving"
+                ? "is-saving"
+                : ""
+            }`}
           >
-            {nodes.length === 0 && (
-              <div className="workspace__canvas-empty">
-                Drag in blocks from the left panel or click to add them here.
-              </div>
-            )}
-            {nodes.map((node) => {
-              const color = nodeTypeColors[node.type] ?? nodeTypeColors.default;
-              const Icon = paletteGroups
-                .flatMap((group) => group.items)
-                .find((item) => item.type === node.type)?.icon;
-              return (
-                <div
-                  key={node.id}
-                  className={`workspace__node ${
-                    selectedNodeId === node.id ? "is-selected" : ""
-                  }`}
-                  style={{
-                    left: node.position.x,
-                    top: node.position.y,
-                    borderColor: color,
-                  }}
-                  onPointerDown={(event) => handleNodePointerDown(event, node)}
-                >
-                  <span className="workspace__node-icon" style={{ color }}>
-                    {Icon ? <Icon size={18} /> : <FiCommand size={18} />}
-                  </span>
-                  <div className="workspace__node-body">
-                    <strong>{node.label}</strong>
-                    <span>{node.type}</span>
-                  </div>
-                  <div className="workspace__node-handles">
-                    <span />
-                    <span />
-                    <span />
-                  </div>
+            {statusLabel}
+          </div>
+
+          <div className="workspace__actions">
+            <button
+              type="button"
+              className={`workspace__theme-toggle ${theme === "light" ? "is-selected" : ""}`}
+              onClick={() => setTheme((prev) => (prev === "light" ? "dark" : "light"))}
+              aria-label={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
+            >
+              {theme === "light" ? <FiMoon size={16} /> : <FiSun size={16} />}
+            </button>
+            <button
+              type="button"
+              className="workspace__button workspace__button--primary"
+              onClick={handleSaveNow}
+              disabled={savingState === "saving"}
+            >
+              <FiSave size={16} />
+              Save now
+            </button>
+          </div>
+        </header>
+
+        <div className="workspace__body">
+          <aside className="workspace__panel workspace__panel--left">
+            <h3 className="workspace__panel-title">Blocks</h3>
+            {paletteGroups.map((group) => (
+              <div key={group.title} className="workspace__palette-group">
+                <h4>{group.title}</h4>
+                <div className="workspace__palette-items">
+                  {group.items.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className="workspace__palette-item"
+                      onClick={() => handleAddNode(item)}
+                    >
+                      <span className="workspace__palette-icon" data-type={item.type}>
+                        <item.icon size={18} />
+                      </span>
+                      <span>
+                        <strong>{item.label}</strong>
+                        <small>{item.description}</small>
+                      </span>
+                    </button>
+                  ))}
                 </div>
-              );
-            })}
-          </div>
-        </section>
-
-        <aside className="workspace__panel workspace__panel--right">
-          <h3 className="workspace__panel-title">Inspector</h3>
-          <div className="workspace__panel-body">
-            {selectedNode ? (
-              <>
-                <label>
-                  Node label
-                  <input
-                    value={selectedNode.label}
-                    onChange={(event) =>
-                      handleNodeLabelChange(selectedNode.id, event.target.value)
-                    }
-                  />
-                </label>
-
-                <label>
-                  Node type
-                  <select
-                    value={selectedNode.type}
-                    onChange={(event) =>
-                      handleNodeTypeChange(selectedNode.id, event.target.value)
-                    }
-                  >
-                    {Object.keys(nodeTypeColors).map((type) => (
-                      <option key={type} value={type}>
-                        {type}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label>
-                  Notes
-                  <textarea
-                    value={(selectedNode.meta as any)?.notes ?? ""}
-                    placeholder="What happens inside this block?"
-                    onChange={(event) =>
-                      handleNodeNotesChange(selectedNode.id, event.target.value)
-                    }
-                  />
-                </label>
-
-                <button
-                  type="button"
-                  className="workspace__button workspace__button--danger"
-                  onClick={handleDeleteNode}
-                >
-                  <FiTrash2 size={16} />
-                  Remove block
-                </button>
-              </>
-            ) : (
-              <div className="workspace__empty-inspector">
-                Select a block to edit its properties.
               </div>
-            )}
+            ))}
+          </aside>
 
-            <div className="workspace__divider" />
-
-            <label>
-              Workspace summary
-              <textarea
-                value={workspaceMeta?.description ?? ""}
-                placeholder="Describe what this workspace does…"
-                onChange={(event) =>
-                  setWorkspaceMeta((prev) => ({
-                    ...(prev ?? {}),
-                    description: event.target.value,
-                  }))
+          <section ref={flowWrapperRef} className="workspace__canvas">
+            <ReactFlow
+              nodes={nodes}
+              edges={edges}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onConnect={handleConnect}
+              onSelectionChange={handleSelectionChange}
+              nodeTypes={rosNodeTypes}
+              fitView={nodes.length > 0}
+              fitViewOptions={{ padding: 0.14 }}
+              minZoom={0.45}
+              maxZoom={1.8}
+              translateExtent={WORKSPACE_EXTENT}
+              nodeExtent={WORKSPACE_EXTENT}
+              panOnScroll
+              panOnDrag // allow click-and-drag on the canvas to pan
+              selectionOnDrag
+              proOptions={{ hideAttribution: true }}
+              className="workspace__reactflow"
+              onInit={(instance) => {
+                rfInstanceRef.current = instance;
+                if (nodes.length) {
+                  instance.fitView({ padding: 0.2 });
                 }
+              }}
+            >
+              <Background
+                gap={24}
+                size={3}
+                color={backgroundGridColor}
+                bgColor={backgroundGridBg}
+                variant="dots"
               />
-            </label>
-          </div>
-        </aside>
-      </div>
+              {nodes.length > 0 && (
+                <MiniMap
+                  pannable
+                  zoomable
+                  bgColor={theme === "light" ? "#fff7e6" : "#0b0f16"}
+                  maskColor={theme === "light" ? "rgba(255, 247, 230, 0.9)" : "rgba(11, 15, 22, 0.9)"}
+                  nodeColor={(node) => nodeTypeColors[(node as FlowNode).data?.type ?? "default"]}
+                  nodeStrokeColor={theme === "light" ? "#0f172a" : "#0b0f16"}
+                />
+              )}
+              <Controls position="bottom-right" />
+            </ReactFlow>
+          </section>
 
-      <div className="workspace__zoom-overlay">
-        <div className="workspace__zoom">
-          <button
-            type="button"
-            className="workspace__zoom-btn"
-            onClick={() => handleZoomButton("out")}
-          >
-            −
-          </button>
-          <input
-            type="range"
-            min="50"
-            max="200"
-            step="5"
-            value={Math.round(zoom * 100)}
-            onChange={(event) => updateZoom(Number(event.target.value) / 100)}
-          />
-          <button
-            type="button"
-            className="workspace__zoom-btn"
-            onClick={() => handleZoomButton("in")}
-          >
-            +
-          </button>
-          <span className="workspace__zoom-label">{Math.round(zoom * 100)}%</span>
-          <button
-            type="button"
-            className="workspace__zoom-reset"
-            onClick={() => handleZoomButton("reset")}
-          >
-            Reset
-          </button>
+          <aside className="workspace__panel workspace__panel--right">
+            <h3 className="workspace__panel-title">Inspector</h3>
+            <div className="workspace__panel-body">
+              {selectedNode ? (
+                <>
+                  <label>
+                    Node label
+                    <input
+                      value={selectedNode.data?.label ?? ""}
+                      onChange={(event) =>
+                        handleNodeLabelChange(selectedNode.id, event.target.value)
+                      }
+                    />
+                  </label>
+
+                  <label>
+                    Node type
+                    <select
+                      value={selectedNode.data?.type ?? ""}
+                      onChange={(event) =>
+                        handleNodeTypeChange(selectedNode.id, event.target.value)
+                      }
+                    >
+                      {Object.keys(nodeTypeColors).map((type) => (
+                        <option key={type} value={type}>
+                          {type}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label>
+                    Notes
+                    <textarea
+                      value={(selectedNode.data?.meta as any)?.notes ?? ""}
+                      placeholder="What happens inside this block?"
+                      onChange={(event) =>
+                        handleNodeNotesChange(selectedNode.id, event.target.value)
+                      }
+                    />
+                  </label>
+
+                  <button
+                    type="button"
+                    className="workspace__button workspace__button--danger"
+                    onClick={handleDeleteNode}
+                  >
+                    <FiTrash2 size={16} />
+                    Remove block
+                  </button>
+                </>
+              ) : (
+                <div className="workspace__empty-inspector">
+                  Select a block to edit its properties.
+                </div>
+              )}
+
+              <div className="workspace__divider" />
+
+              <label>
+                Workspace summary
+                <textarea
+                  value={workspaceMeta?.description ?? ""}
+                  placeholder="Describe what this workspace does…"
+                  onChange={(event) =>
+                    setWorkspaceMeta((prev) => ({
+                      ...(prev ?? {}),
+                      description: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+            </div>
+          </aside>
+        </div>
+
+        <div className="workspace__zoom-overlay">
         </div>
       </div>
-    </div>
+    </ReactFlowProvider>
   );
 };
 
