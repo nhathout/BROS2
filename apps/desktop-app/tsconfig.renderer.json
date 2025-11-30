@@ -17,6 +17,7 @@
   },
   "include": [
     "src/renderer/**/*",
-    "src/types/global.d.ts"
+    "src/types/global.d.ts",
+    "src/shared/**/*"
   ]
 }

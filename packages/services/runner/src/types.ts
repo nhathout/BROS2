@@ -12,8 +12,15 @@ export interface ExecResult {
   stderr: string;
 }
 
+export interface PortMapping {
+  host: number | string;
+  container: number | string;
+  protocol?: "tcp" | "udp";
+}
+
 export interface ComposeOptions {
   containerName: string;
   workspaceHostPath: string;
   image: string;
+  ports?: PortMapping[];
 }

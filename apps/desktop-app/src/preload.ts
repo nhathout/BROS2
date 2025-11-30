@@ -5,38 +5,9 @@
 
 // 1) Load side-effect bridges (CJS) so window.ir, window.runner, window.runtime are defined.
 // These modules execute their contextBridge.exposeInMainWorld(...) calls.
-import path from "path";
-import fs from "fs";
-
-function loadBridge(filename: string) {
-  const candidates = [
-    path.join(__dirname, "remote", filename),
-    path.join(__dirname, "..", "dist", "remote", filename),
-    path.join(__dirname, "..", "src", "remote", filename),
-  ];
-
-  for (const candidate of candidates) {
-    if (!fs.existsSync(candidate)) continue;
-    try {
-      require(candidate);
-      return;
-    } catch (err: any) {
-      // Electron throws when a bridge tries to overwrite an existing property (e.g., runner).
-      if (err?.message?.includes("Cannot bind an API on top of an existing property")) {
-        return;
-      }
-      if (err?.code !== "MODULE_NOT_FOUND") {
-        console.warn(`[preload] failed loading ${candidate}:`, err);
-        return;
-      }
-    }
-  }
-
-  console.warn(`[preload] bridge ${filename} not found; tried`, candidates);
-}
-
-loadBridge("ir-bridge.cjs");
-loadBridge("runtime-bridge.cjs");
+import "./remote/ir-bridge.cjs";
+import "./remote/runner-bridge.cjs";
+import "./remote/runtime-bridge.cjs";
 
 // 2) Keep your existing OAuth helpers under window.electron
 import { contextBridge, ipcRenderer } from "electron";
@@ -71,4 +42,23 @@ safeExpose("workspace", {
   load: (id: string): Promise<WorkspaceDocument> => ipcRenderer.invoke("workspace:load", id),
   save: (id: string, data: WorkspaceDocument): Promise<WorkspaceDocument> =>
     ipcRenderer.invoke("workspace:save", { id, data }),
+  storageList: (): Promise<
+    Array<{
+      id: string;
+      name: string;
+      path: string;
+      bytes: number;
+    }>
+  > => ipcRenderer.invoke("workspace:storageList"),
+});
+
+safeExpose("folder", {
+  list: (): Promise<Array<{ name: string; path: string; fullPath: string }>> =>
+    ipcRenderer.invoke("folder:list"),
+  create: (name: string, parent?: string | null): Promise<{ name: string; path: string; fullPath: string }> =>
+    ipcRenderer.invoke("folder:create", { name, parent }),
+  open: (folderPath: string): Promise<boolean> => ipcRenderer.invoke("folder:open", folderPath),
+  rename: (payload: { oldPath: string; newName: string }): Promise<{ name: string; path: string }> =>
+    ipcRenderer.invoke("folder:rename", payload),
+  trash: (folderPath: string): Promise<{ path: string }> => ipcRenderer.invoke("folder:trash", folderPath),
 });

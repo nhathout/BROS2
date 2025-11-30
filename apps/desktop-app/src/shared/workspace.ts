@@ -16,6 +16,9 @@ export type WorkspaceDocument = {
     description?: string;
     tags?: string[];
     icon?: string;
+    type?: string;
+    trashedAt?: string;
+    folder?: string;
   };
 };
 

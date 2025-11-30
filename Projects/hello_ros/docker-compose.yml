@@ -1,9 +1,11 @@
 services:
-  bros_helloros:
-    image: ros:humble
-    container_name: bros_helloros
+  bros2_helloros:
+    image: bros2/ros2-humble:latest
+    container_name: bros2_helloros
     command: bash -lc "sleep infinity"
     working_dir: /workspace
     tty: true
     volumes:
-      - "/Users/trieutran/BROS2/Projects/hello_ros/workspace:/workspace"
+      - "/Users/noahhathout/BROS2/Projects/hello_ros/workspace:/workspace"
+    ports:
+      - "9090:9090"

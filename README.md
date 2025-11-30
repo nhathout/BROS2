@@ -1,4 +1,4 @@
-<p align="left">
+<p align="center">
   <img src="assets/logos/BROS2-logo-long.png" alt="BROS2 logo" width="440">
 </p>
 
@@ -22,6 +22,51 @@ Verify Docker access before continuing:
 ```bash
 docker ps
 ```
+
+## Quick Dev Loop
+
+1. Select Node 20.19.x
+
+   ```bash
+   source ~/.nvm/nvm.sh
+   nvm use 20.19.0
+   ```
+
+2. Refresh deps (clean if things feel stale):
+
+   ```bash
+   pnpm install -r
+   pnpm -r clean   # optional, only if builds seem out of date
+   ```
+
+   If you did clean, run the workspace builds in the Daily Development section (step 3) before moving on below.
+
+3. Build the ROS image once per machine (safe to rerun):
+
+   ```bash
+   pnpm --filter ./apps/desktop-app ros:build-image
+   ```
+
+4. Regenerate the Electron main + preload bundle (needed after a clean):
+
+   ```bash
+   pnpm --filter ./apps/desktop-app build:main
+   ```
+
+5. Launch the desktop dev stack (Electron main + Vite renderer):
+
+   ```bash
+   pnpm --filter ./apps/desktop-app dev
+   ```
+
+6. In Electron DevTools, bring up ROS 2 + rosbridge when you need it:
+
+   ```js
+   await window.runner.up("hello_ros");
+   await window.runner.exec('bash -lc "source /opt/ros/humble/setup.bash && ros2 launch rosbridge_server rosbridge_websocket_launch.xml"');
+   ```
+
+Skip to the sections below for the full workflow details and tests.
 
 ## First-Time Setup
 
@@ -48,13 +93,13 @@ It launches the packaged app once everything compiles. If the script adds an `nv
    nvm use 20.19.0
    ```
 
-2. **Refresh dependencies** after pulling changes:
+2. **Refresh dependencies** after pulling changes (rerun `pnpm -r clean` first if builds look stale):
 
    ```bash
    pnpm install -r
    ```
 
-3. **Build the workspace libraries** so their `.d.ts` files exist for the Electron main process. Run each filter separately from the repo root (brace expansion is not supported):
+3. **Build the workspace libraries** (run this after changing any of these packages so their `.d.ts` files stay fresh for Electron main):
 
    ```bash
    pnpm --filter @bros2/runtime build
@@ -64,8 +109,14 @@ It launches the packaged app once everything compiles. If the script adds an `nv
    pnpm --filter @bros2/runner build
    ```
 
-4. **Emit the desktop main + preload bundle** (run from the repo root).  
-   _Do not skip this step after running `pnpm -r clean`; it regenerates the preload bridges and the runtime registry that power `window.runtime`._
+4. **Keep the ROS runner image up to date** (once per machine, rerun after touching `packages/services/runner/images/ros2-humble`):
+
+   ```bash
+   pnpm --filter ./apps/desktop-app ros:build-image
+   ```
+
+5. **Emit the desktop main + preload bundle** (run from the repo root).  
+_Do not skip this step after running `pnpm -r clean`; it regenerates the preload bridges and the runtime registry that power `window.runtime`._
 
    ```bash
    pnpm --filter ./apps/desktop-app build:main
@@ -77,7 +128,7 @@ It launches the packaged app once everything compiles. If the script adds an `nv
    pnpm --filter ./apps/desktop-app build:renderer
    ```
 
-5. **Start the dev environment** (Electron main + Vite renderer):
+6. **Start the dev environment** (Electron main + Vite renderer):
 
    ```bash
    pnpm --filter ./apps/desktop-app dev
@@ -116,7 +167,7 @@ await window.runner.exec("ros2 pkg list | head -n 5");
 await window.runner.down();
 ```
 
-This spins up the `bros_hello_ros` container defined in `Projects/hello_ros` and exercises the ROS 2 CLI.
+This spins up the `bros2_hello_ros` container defined in `Projects/hello_ros` and exercises the ROS 2 CLI.
 
 ### IR build + validation example
 
@@ -153,6 +204,21 @@ window.runtime.list(); // ["ArrowKeyPub_1", "ConsoleSub_1"]
 
 If `window.runtime` is missing, run `pnpm --filter ./apps/desktop-app build:main` again to regenerate the preload bridges.
 
+### API cheatsheet (DevTools)
+
+- `window.runner.up(projectName)` – start/update the Docker container `bros2_<projectName>` backed by `bros2/ros2-humble:latest`.
+- `window.runner.exec(command)` – run commands like `ros2 topic list` or launching rosbridge:
+
+  ```js
+  await window.runner.exec('bash -lc "source /opt/ros/humble/setup.bash && ros2 launch rosbridge_server rosbridge_websocket_launch.xml"');
+  ```
+
+- `window.runner.down()` – stop/remove the ROS 2 container.
+- `window.runtime.create(type, config)` – instantiate nodes registered in `apps/desktop-app/src/renderer/runtime/registry.ts` (`ArrowKeyPub`, `ConsoleSub`, `RosbridgeBridge`, `Forwarder`).
+- `window.runtime.start(id)`, `window.runtime.stop(id)`, `window.runtime.stopAll()` – control renderer-runtime nodes.
+- `window.ir.build(...)` / `window.ir.validate(...)` – convert block graphs to IR and run validators.
+- `globalThis.__rosbridge__` – dev-only handle populated by `RosbridgeBridge` with helpers like `publishRos(topic, msg)`.
+
 ## Cleaning & Full Rebuild
 
 1. Remove build outputs everywhere (this clears `dist/` folders and `tsconfig.main.tsbuildinfo`, ensuring the desktop main bundle re-emits `dist/main.js`):
@@ -184,7 +250,10 @@ If `window.runtime` is missing, run `pnpm --filter ./apps/desktop-app build:main
    pnpm -r build
    ```
 
-   You may ignore macOS code-sign warnings on local development machines.
+## Supporting docs
+
+- [`apps/desktop-app/README.md`](apps/desktop-app/README.md) – ROS 2 quickstart snippet, DevTools walkthrough, and desktop-specific scripts.
+- [`packages/services/runner/images/ros2-humble/README.md`](packages/services/runner/images/ros2-humble/README.md) – maintenance notes for the Docker image used by `window.runner`.
 
 ## Tips
 - Keep Docker running whenever you use `window.runner.*`; the runner manages containers in `Projects/`.
