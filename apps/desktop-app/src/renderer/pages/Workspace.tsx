@@ -270,6 +270,14 @@ const WorkspacePage: React.FC = () => {
       workspaceNodes.some((node) => node.type === "RosbridgeBridge" || node.type === "Forwarder"),
     [hasTurtlesimNode, workspaceNodes]
   );
+  const graphHasEdges = useMemo(() => edges.length > 0, [edges.length]);
+  const graphHasDisconnectedNodes = useMemo(
+    () =>
+      workspaceNodes.some(
+        (node) => !edges.some((e) => e.source === node.id || e.target === node.id)
+      ),
+    [edges, workspaceNodes]
+  );
 
   const ensureUniqueNameInFolder = useCallback(
     async (desired: string) => {
@@ -769,6 +777,17 @@ const WorkspacePage: React.FC = () => {
 
   const startRos = useCallback(async () => {
     if (rosState === "starting" || rosState === "running") return;
+    if (workspaceNodes.length === 0 || !graphHasEdges || graphHasDisconnectedNodes) {
+      setRosState("error");
+      setRosMessage(
+        workspaceNodes.length === 0
+          ? "Add blocks before starting"
+          : !graphHasEdges
+          ? "Connect your blocks before starting"
+          : "Connect all blocks to run"
+      );
+      return;
+    }
     if (!window.runner?.up || !window.runner.exec) {
       setRosState("error");
       setRosMessage("window.runner is unavailable");
