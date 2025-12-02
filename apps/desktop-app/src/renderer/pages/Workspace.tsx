@@ -240,6 +240,7 @@ const WorkspacePage: React.FC = () => {
   const hasHydratedRef = useRef(false);
   const lastSavedSigRef = useRef<string | null>(null);
   const runtimeNodesRef = useRef<Map<string, { type: string; metaSig: string }>>(new Map());
+  const startedTurtlesimRef = useRef(false);
 
   const workspaceNodes = useMemo(() => nodes.map(toWorkspaceNode), [nodes]);
   const selectedNode = useMemo(
@@ -270,14 +271,9 @@ const WorkspacePage: React.FC = () => {
       workspaceNodes.some((node) => node.type === "RosbridgeBridge" || node.type === "Forwarder"),
     [hasTurtlesimNode, workspaceNodes]
   );
-  const graphHasEdges = useMemo(() => edges.length > 0, [edges.length]);
-  const graphHasDisconnectedNodes = useMemo(
-    () =>
-      workspaceNodes.some(
-        (node) => !edges.some((e) => e.source === node.id || e.target === node.id)
-      ),
-    [edges, workspaceNodes]
-  );
+  useEffect(() => {
+    if (!hasConsoleSubNode) setConsoleFeed([]);
+  }, [hasConsoleSubNode]);
 
   const ensureUniqueNameInFolder = useCallback(
     async (desired: string) => {
@@ -777,15 +773,26 @@ const WorkspacePage: React.FC = () => {
 
   const startRos = useCallback(async () => {
     if (rosState === "starting" || rosState === "running") return;
-    if (workspaceNodes.length === 0 || !graphHasEdges || graphHasDisconnectedNodes) {
+    const nodeCount = workspaceNodes.length;
+    if (nodeCount === 0) {
       setRosState("error");
-      setRosMessage(
-        workspaceNodes.length === 0
-          ? "Add blocks before starting"
-          : !graphHasEdges
-          ? "Connect your blocks before starting"
-          : "Connect all blocks to run"
-      );
+      setRosMessage("Add blocks before starting");
+      return;
+    }
+    if (edges.length === 0) {
+      setRosState("error");
+      setRosMessage("Connect your blocks before starting");
+      return;
+    }
+    const degree = new Map<string, number>();
+    for (const edge of edges) {
+      degree.set(edge.source, (degree.get(edge.source) ?? 0) + 1);
+      degree.set(edge.target, (degree.get(edge.target) ?? 0) + 1);
+    }
+    const hasIsolated = workspaceNodes.some((node) => (degree.get(node.id) ?? 0) === 0);
+    if (hasIsolated) {
+      setRosState("error");
+      setRosMessage("Connect your blocks before starting");
       return;
     }
     if (!window.runner?.up || !window.runner.exec) {
@@ -806,12 +813,14 @@ const WorkspacePage: React.FC = () => {
         'bash -lc "source /opt/ros/humble/setup.bash && nohup ros2 launch rosbridge_server rosbridge_websocket_launch.xml >/tmp/rosbridge.log 2>&1 & echo $!"'
       );
       if (bridgeRes.code !== 0) throw new Error(bridgeRes.stderr || bridgeRes.stdout);
+      startedTurtlesimRef.current = false;
       if (hasTurtlesimNode) {
         setRosMessage("Starting turtlesim…");
         const turtleRes = await window.runner.exec(
           'bash -lc "source /opt/ros/humble/setup.bash && QT_QPA_PLATFORM=offscreen nohup ros2 run turtlesim turtlesim_node >/tmp/turtlesim.log 2>&1 & echo $!"'
         );
         if (turtleRes.code !== 0) throw new Error(turtleRes.stderr || turtleRes.stdout);
+        startedTurtlesimRef.current = true;
       }
       setRosMessage("rosbridge launched");
       const bridge = (globalThis as any).__rosbridge__;
@@ -830,7 +839,7 @@ const WorkspacePage: React.FC = () => {
       setRosState("error");
       setRosMessage("Failed to start ROS (check Docker/rosbridge)");
     }
-  }, [generateGraph, hasTurtlesimNode, rosProjectName, rosState, showGraph]);
+  }, [edges, generateGraph, hasTurtlesimNode, rosProjectName, rosState, showGraph, workspaceNodes]);
 
   const stopRos = useCallback(async () => {
     if (rosState === "stopping" || rosState === "idle") return;
@@ -840,10 +849,11 @@ const WorkspacePage: React.FC = () => {
       return;
     }
     setRosState("stopping");
-    setRosMessage("Stopping rosbridge/turtlesim…");
+    setRosMessage("Stopping rosbridge…");
     try {
+      const killTurtle = startedTurtlesimRef.current ? "pkill -f turtlesim_node || true;" : "";
       await window.runner.exec(
-        'bash -lc "pkill -f rosbridge_websocket || true; pkill -f turtlesim_node || true"'
+        `bash -lc "pkill -f rosbridge_websocket || true; ${killTurtle}"`
       );
       await window.runner.down();
       setRosState("idle");
@@ -866,8 +876,9 @@ const WorkspacePage: React.FC = () => {
       }
       runtimeMap.clear();
       // stop containers
+      const killTurtle = startedTurtlesimRef.current ? "pkill -f turtlesim_node || true;" : "";
       void window.runner?.exec?.(
-        'bash -lc "pkill -f rosbridge_websocket || true; pkill -f turtlesim_node || true"'
+        `bash -lc "pkill -f rosbridge_websocket || true; ${killTurtle}"`
       );
       void window.runner?.down?.();
     };
