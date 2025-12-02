@@ -23,10 +23,12 @@ import "@xyflow/react/dist/style.css";
 import type { IconType } from "react-icons";
 import {
   FiChevronLeft,
+  FiChevronRight,
   FiCommand,
   FiDatabase,
   FiEdit2,
   FiMap,
+  FiPower,
   FiPlay,
   FiSave,
   FiTrash2,
@@ -69,10 +71,16 @@ const WORKSPACE_EXTENT: CoordinateExtent = [
 const nodeTypeColors: Record<string, string> = {
   ArrowKeyPub: "#38bdf8",
   ConsoleSub: "#f97316",
+  TurtleSimSub: "#22c55e",
+  TurtleSimSubscriber: "#22c55e",
   RosbridgeBridge: "#c084fc",
   Forwarder: "#22d3ee",
   default: "#a3a3a3",
 };
+
+const selectableNodeTypes = Object.keys(nodeTypeColors).filter(
+  (type) => type !== "default" && type !== "TurtleSimSubscriber"
+);
 
 const paletteGroups: Array<{ title: string; items: PaletteItem[] }> = [
   {
@@ -87,6 +95,20 @@ const paletteGroups: Array<{ title: string; items: PaletteItem[] }> = [
         defaultMeta: { topic: "keys/arrows" },
       },
       {
+        id: "TurtleSimSub",
+        label: "Turtlesim Sub",
+        type: "TurtleSimSub",
+        icon: FiMap,
+        description: "Translates arrow key events into /turtle1/cmd_vel Twist messages.",
+        defaultMeta: {
+          inputTopic: "keys/arrows",
+          cmdVelTopic: "/turtle1/cmd_vel",
+          linearSpeed: 1.5,
+          angularSpeed: 3,
+          stopAfterMs: 160,
+        },
+      },
+      {
         id: "ConsoleSub",
         label: "Console Subscriber",
         type: "ConsoleSub",
@@ -94,12 +116,17 @@ const paletteGroups: Array<{ title: string; items: PaletteItem[] }> = [
         description: "Logs inbound messages from a topic to the console.",
         defaultMeta: { topic: "keys/arrows" },
       },
+    ],
+  },
+  {
+    title: "ROS Transport",
+    items: [
       {
         id: "RosbridgeBridge",
         label: "Rosbridge Bridge",
         type: "RosbridgeBridge",
         icon: FiMap,
-        description: "Connects to rosbridge and mirrors ROS publish/subscribe traffic.",
+        description: "Connects to rosbridge and mirrors ROS publish/subscribe traffic (infrastructure).",
         defaultMeta: { urls: ["ws://localhost:9090", "ws://127.0.0.1:9090"], retryMs: 2500 },
       },
       {
@@ -184,6 +211,22 @@ const WorkspacePage: React.FC = () => {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [savingState, setSavingState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [saveTimestamp, setSaveTimestamp] = useState<string | null>(null);
+  const [rosState, setRosState] = useState<"idle" | "starting" | "running" | "stopping" | "error">(
+    "idle"
+  );
+  const [rosMessage, setRosMessage] = useState<string>("ROS idle");
+  const [showConsole, setShowConsole] = useState(false);
+  const [showViewer, setShowViewer] = useState(false);
+  const [showInspector, setShowInspector] = useState(true);
+  const [showGraph, setShowGraph] = useState(false);
+  const [graphImage, setGraphImage] = useState<string | null>(null);
+  const [graphDot, setGraphDot] = useState<string | null>(null);
+  const [graphStatus, setGraphStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [activeDrawerTab, setActiveDrawerTab] = useState<"console" | "viewer" | "graph">("console");
+  const [consoleFeed, setConsoleFeed] = useState<
+    Array<{ ts: number; topic: string; from: string; data: any }>
+  >([]);
+  const [lastPose, setLastPose] = useState<{ x: number; y: number; theta: number } | null>(null);
   const getStoredTheme = () => {
     if (typeof window === "undefined") return "dark" as const;
     const stored = window.localStorage?.getItem("bros2-theme");
@@ -202,6 +245,30 @@ const WorkspacePage: React.FC = () => {
   const selectedNode = useMemo(
     () => nodes.find((node) => node.id === selectedNodeId) ?? null,
     [nodes, selectedNodeId]
+  );
+  const rosProjectName = useMemo(() => {
+    const base = (workspaceName || "").trim() || "turtlesim";
+    const sanitized = base.toLowerCase().replace(/[^a-z0-9-_]/g, "_").replace(/_+/g, "_");
+    const cleaned = sanitized.replace(/^_+/, "").replace(/_+$/, "");
+    return cleaned || "turtlesim";
+  }, [workspaceName]);
+  const showDrawer = showConsole || showViewer || showGraph;
+  const hasTurtlesimNode = useMemo(
+    () =>
+      workspaceNodes.some(
+        (node) => node.type === "TurtleSimSub" || node.type === "TurtleSimSubscriber"
+      ),
+    [workspaceNodes]
+  );
+  const hasConsoleSubNode = useMemo(
+    () => workspaceNodes.some((node) => node.type === "ConsoleSub"),
+    [workspaceNodes]
+  );
+  const needsRosbridge = useMemo(
+    () =>
+      hasTurtlesimNode ||
+      workspaceNodes.some((node) => node.type === "RosbridgeBridge" || node.type === "Forwarder"),
+    [hasTurtlesimNode, workspaceNodes]
   );
 
   const ensureUniqueNameInFolder = useCallback(
@@ -363,6 +430,55 @@ const WorkspacePage: React.FC = () => {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!hasConsoleSubNode && !hasTurtlesimNode) return;
+    const handler = (evt: any) => {
+      if (!evt || !evt.topic) return;
+      if (hasConsoleSubNode) {
+        setConsoleFeed((prev) => [...prev, evt].slice(-200));
+      }
+      if (evt.topic === "/turtle1/pose" && evt.data) {
+        const pose = evt.data as any;
+        if (
+          typeof pose.x === "number" &&
+          typeof pose.y === "number" &&
+          typeof pose.theta === "number"
+        ) {
+          setLastPose({ x: pose.x, y: pose.y, theta: pose.theta });
+          if (rosState === "running") setRosMessage("rosbridge + turtlesim running");
+        }
+      }
+    };
+    runtime.bus.on("__all__", handler);
+    return () => {
+      runtime.bus.off("__all__", handler);
+    };
+  }, [hasConsoleSubNode, hasTurtlesimNode, rosState]);
+
+  useEffect(() => {
+    const shouldShowViewer = rosState === "running" && hasTurtlesimNode;
+    setShowViewer(shouldShowViewer);
+    if (!shouldShowViewer) {
+      setLastPose(null);
+    } else {
+      const bridge = (globalThis as any).__rosbridge__;
+      if (bridge?.subscribeRos) {
+        bridge.subscribeRos("/turtle1/pose");
+      }
+    }
+  }, [hasTurtlesimNode, rosState]);
+
+  useEffect(() => {
+    const available: Array<"console" | "viewer" | "graph"> = [];
+    if (showViewer) available.push("viewer");
+    if (showConsole) available.push("console");
+    if (showGraph) available.push("graph");
+    if (!available.length) return;
+    if (!available.includes(activeDrawerTab)) {
+      setActiveDrawerTab(available[0]);
+    }
+  }, [activeDrawerTab, showConsole, showGraph, showViewer]);
 
   const handleSelectionChange = useCallback<OnSelectionChangeFunc<FlowNode, Edge>>(
     ({ nodes: selectedNodes }) => {
@@ -602,6 +718,142 @@ const WorkspacePage: React.FC = () => {
     }
   }, [saveTimestamp, savingState]);
 
+  const rosStatusClass = useMemo(() => {
+    if (rosState === "running") return "is-running";
+    if (rosState === "error") return "is-error";
+    if (rosState === "starting" || rosState === "stopping") return "is-pending";
+    return "";
+  }, [rosState]);
+
+  const rosButtonLabel = useMemo(() => {
+    switch (rosState) {
+      case "starting":
+        return "Starting…";
+      case "stopping":
+        return "Stopping…";
+      case "running":
+        return "Stop ROS";
+      default:
+        return "Start ROS";
+    }
+  }, [rosState]);
+
+  const generateGraph = useCallback(async () => {
+    setShowGraph(true);
+    setActiveDrawerTab("graph");
+    setGraphImage(null);
+    setGraphDot(null);
+    if (!window.runner?.exec) {
+      setGraphStatus("error");
+      return;
+    }
+    setGraphStatus("loading");
+    const cmd =
+      'bash -lc "source /opt/ros/humble/setup.bash && export QT_QPA_PLATFORM=offscreen; if command -v rqt_graph >/dev/null 2>&1; then if command -v dot >/dev/null 2>&1; then rqt_graph --dot > /tmp/rqt_graph.dot && dot -Tpng /tmp/rqt_graph.dot -o /tmp/rqt_graph.png && base64 /tmp/rqt_graph.png; else rqt_graph --dot; fi; else echo rqt_graph missing >&2; exit 1; fi"';
+    try {
+      const res = await window.runner.exec(cmd);
+      if (res.code !== 0) throw new Error(res.stderr || res.stdout || "rqt_graph failed");
+      const out = (res.stdout || "").trim();
+      if (!out) throw new Error("Empty rqt_graph output");
+      if (out.startsWith("digraph")) {
+        setGraphDot(out);
+      } else {
+        setGraphImage(out);
+      }
+      setGraphStatus("idle");
+    } catch (err) {
+      console.error("[rqt_graph] failed", err);
+      setGraphStatus("error");
+    }
+  }, []);
+
+  const startRos = useCallback(async () => {
+    if (rosState === "starting" || rosState === "running") return;
+    if (!window.runner?.up || !window.runner.exec) {
+      setRosState("error");
+      setRosMessage("window.runner is unavailable");
+      return;
+    }
+    setRosState("starting");
+    setRosMessage(
+      `Launching rosbridge${hasTurtlesimNode ? " + turtlesim" : ""}${
+        showGraph ? " + rqt_graph" : ""
+      }…`
+    );
+    try {
+      await window.runner.up(rosProjectName);
+      setRosMessage("Starting rosbridge…");
+      const bridgeRes = await window.runner.exec(
+        'bash -lc "source /opt/ros/humble/setup.bash && nohup ros2 launch rosbridge_server rosbridge_websocket_launch.xml >/tmp/rosbridge.log 2>&1 & echo $!"'
+      );
+      if (bridgeRes.code !== 0) throw new Error(bridgeRes.stderr || bridgeRes.stdout);
+      if (hasTurtlesimNode) {
+        setRosMessage("Starting turtlesim…");
+        const turtleRes = await window.runner.exec(
+          'bash -lc "source /opt/ros/humble/setup.bash && QT_QPA_PLATFORM=offscreen nohup ros2 run turtlesim turtlesim_node >/tmp/turtlesim.log 2>&1 & echo $!"'
+        );
+        if (turtleRes.code !== 0) throw new Error(turtleRes.stderr || turtleRes.stdout);
+      }
+      setRosMessage("rosbridge launched");
+      const bridge = (globalThis as any).__rosbridge__;
+      if (bridge?.subscribeRos) {
+        bridge.subscribeRos("/turtle1/pose");
+      }
+      setRosState("running");
+      setRosMessage(
+        `rosbridge${hasTurtlesimNode ? " + turtlesim" : ""} running${
+          showGraph ? " (rqt ready)" : ""
+        }`
+      );
+      if (showGraph) void generateGraph();
+    } catch (err) {
+      console.error("[ros] start failed", err);
+      setRosState("error");
+      setRosMessage("Failed to start ROS (check Docker/rosbridge)");
+    }
+  }, [generateGraph, hasTurtlesimNode, rosProjectName, rosState, showGraph]);
+
+  const stopRos = useCallback(async () => {
+    if (rosState === "stopping" || rosState === "idle") return;
+    if (!window.runner?.down || !window.runner.exec) {
+      setRosState("error");
+      setRosMessage("window.runner is unavailable");
+      return;
+    }
+    setRosState("stopping");
+    setRosMessage("Stopping rosbridge/turtlesim…");
+    try {
+      await window.runner.exec(
+        'bash -lc "pkill -f rosbridge_websocket || true; pkill -f turtlesim_node || true"'
+      );
+      await window.runner.down();
+      setRosState("idle");
+      setRosMessage("ROS stopped");
+      setShowViewer(false);
+      setLastPose(null);
+    } catch (err) {
+      console.error("[ros] stop failed", err);
+      setRosState("error");
+      setRosMessage("Failed to stop ROS cleanly");
+    }
+  }, [rosState]);
+
+  useEffect(() => {
+    return () => {
+      // stop runtime nodes
+      const runtimeMap = runtimeNodesRef.current;
+      for (const id of runtimeMap.keys()) {
+        runtime.stop(id);
+      }
+      runtimeMap.clear();
+      // stop containers
+      void window.runner?.exec?.(
+        'bash -lc "pkill -f rosbridge_websocket || true; pkill -f turtlesim_node || true"'
+      );
+      void window.runner?.down?.();
+    };
+  }, []);
+
   if (loading) {
     return (
       <div className={`workspace workspace--centered ${theme === "light" ? "theme-light" : ""}`}>
@@ -674,6 +926,21 @@ const WorkspacePage: React.FC = () => {
             >
               {theme === "light" ? <FiMoon size={16} /> : <FiSun size={16} />}
             </button>
+            <div className="workspace__ros">
+              <div className={`workspace__ros-status ${rosStatusClass}`}>{rosMessage}</div>
+              <button
+                type="button"
+                className={`workspace__button ${
+                  rosState === "running" ? "workspace__button--danger" : "workspace__button--ros"
+                }`}
+                onClick={rosState === "running" ? stopRos : startRos}
+                disabled={rosState === "starting" || rosState === "stopping"}
+                title="Manage rosbridge + turtlesim inside the runner"
+              >
+                <FiPower size={15} />
+                {rosButtonLabel}
+              </button>
+            </div>
             <button
               type="button"
               className="workspace__button workspace__button--primary"
@@ -686,7 +953,7 @@ const WorkspacePage: React.FC = () => {
           </div>
         </header>
 
-        <div className="workspace__body">
+        <div className={`workspace__body ${showInspector ? "" : "is-inspector-hidden"}`}>
           <aside className="workspace__panel workspace__panel--left">
             <h3 className="workspace__panel-title">Blocks</h3>
             {paletteGroups.map((group) => (
@@ -762,7 +1029,11 @@ const WorkspacePage: React.FC = () => {
             </ReactFlow>
           </section>
 
-          <aside className="workspace__panel workspace__panel--right">
+          <aside
+            className={`workspace__panel workspace__panel--right ${
+              showInspector ? "" : "is-hidden"
+            }`}
+          >
             <h3 className="workspace__panel-title">Inspector</h3>
             <div className="workspace__panel-body">
               {selectedNode ? (
@@ -779,18 +1050,18 @@ const WorkspacePage: React.FC = () => {
 
                   <label>
                     Node type
-                    <select
-                      value={selectedNode.data?.type ?? ""}
-                      onChange={(event) =>
-                        handleNodeTypeChange(selectedNode.id, event.target.value)
-                      }
-                    >
-                      {Object.keys(nodeTypeColors).map((type) => (
-                        <option key={type} value={type}>
-                          {type}
-                        </option>
-                      ))}
-                    </select>
+                  <select
+                    value={selectedNode.data?.type ?? ""}
+                    onChange={(event) =>
+                      handleNodeTypeChange(selectedNode.id, event.target.value)
+                    }
+                  >
+                    {selectableNodeTypes.map((type) => (
+                      <option key={type} value={type}>
+                        {type}
+                      </option>
+                    ))}
+                  </select>
                   </label>
 
                   <label>
@@ -837,6 +1108,173 @@ const WorkspacePage: React.FC = () => {
             </div>
           </aside>
         </div>
+
+        <button
+          type="button"
+          className="workspace__inspector-toggle"
+          onClick={() => setShowInspector((prev) => !prev)}
+          aria-label={showInspector ? "Hide inspector" : "Show inspector"}
+        >
+          {showInspector ? <FiChevronRight size={14} /> : <FiChevronLeft size={14} />}
+        </button>
+
+        <div className="workspace__tools-floating">
+          <button
+            type="button"
+            className={`workspace__button workspace__button--primary ${
+              showConsole ? "is-active" : ""
+            }`}
+            onClick={() => {
+              setShowConsole((prev) => {
+                const next = !prev;
+                if (next) setActiveDrawerTab("console");
+                return next;
+              });
+              setShowGraph(false);
+            }}
+          >
+            <FiCommand size={14} />
+            {showConsole ? "Hide Console" : "Show Console"}
+          </button>
+          <button
+            type="button"
+            className="workspace__button workspace__button--ghost"
+            onClick={() => void generateGraph()}
+            disabled={graphStatus === "loading" || rosState !== "running"}
+            title={rosState === "running" ? "Generate rqt_graph snapshot" : "Start ROS first"}
+          >
+            {graphStatus === "loading" ? "Graph…" : "RQT"}
+          </button>
+        </div>
+
+        {showDrawer && (
+          <div className="workspace__drawer">
+            <div className="workspace__drawer-header">
+              <div className="workspace__drawer-tabs">
+                {showConsole && (
+                  <button
+                    type="button"
+                    className={`workspace__drawer-tab ${
+                      activeDrawerTab === "console" ? "is-active" : ""
+                    }`}
+                    onClick={() => setActiveDrawerTab("console")}
+                  >
+                    Console
+                  </button>
+                )}
+                {showViewer && (
+                  <button
+                    type="button"
+                    className={`workspace__drawer-tab ${
+                      activeDrawerTab === "viewer" ? "is-active" : ""
+                    }`}
+                    onClick={() => setActiveDrawerTab("viewer")}
+                  >
+                    Turtlesim
+                  </button>
+                )}
+                {showGraph && (
+                  <button
+                    type="button"
+                    className={`workspace__drawer-tab ${
+                      activeDrawerTab === "graph" ? "is-active" : ""
+                    }`}
+                    onClick={() => setActiveDrawerTab("graph")}
+                  >
+                    RQT
+                  </button>
+                )}
+              </div>
+              <button
+                type="button"
+                className="workspace__button workspace__button--ghost"
+                onClick={() => {
+                  setShowConsole(false);
+                  setShowGraph(false);
+                  if (rosState !== "running") setShowViewer(false);
+                }}
+              >
+                Close
+              </button>
+            </div>
+
+            {activeDrawerTab === "console" && showConsole && (
+              <div className="workspace__console">
+                {consoleFeed.length === 0 ? (
+                  <div className="workspace__console-empty">No messages yet.</div>
+                ) : (
+                  consoleFeed
+                    .slice()
+                    .reverse()
+                    .map((evt, idx) => (
+                      <div key={`${evt.ts}-${idx}`} className="workspace__console-row">
+                        <span className="workspace__console-topic">{evt.topic}</span>
+                        <span className="workspace__console-from">{evt.from}</span>
+                        <span className="workspace__console-payload">
+                          {typeof evt.data === "string"
+                            ? evt.data
+                            : JSON.stringify(evt.data)}
+                        </span>
+                        <span className="workspace__console-ts">
+                          {new Date(evt.ts).toLocaleTimeString()}
+                        </span>
+                      </div>
+                    ))
+                )}
+              </div>
+            )}
+
+            {activeDrawerTab === "viewer" && showViewer && (
+              <div className="workspace__viewer">
+                {lastPose ? (
+                  <svg viewBox="0 0 12 12" className="workspace__viewer-canvas">
+                    <rect x="0" y="0" width="12" height="12" rx="1.2" fill="#0b1220" stroke="#1f2937" />
+                    <circle cx="1" cy="11" r="0.08" fill="#111827" />
+                    <g transform={`translate(${lastPose.x / 5}, ${12 - lastPose.y / 5})`}>
+                      <circle cx="0" cy="0" r="0.18" fill="#22c55e" />
+                      <line
+                        x1="0"
+                        y1="0"
+                        x2={Math.cos(lastPose.theta) * 0.6}
+                        y2={-Math.sin(lastPose.theta) * 0.6}
+                        stroke="#befae3"
+                        strokeWidth="0.08"
+                        strokeLinecap="round"
+                      />
+                    </g>
+                  </svg>
+                ) : (
+                  <div className="workspace__viewer-empty">
+                    Waiting for /turtle1/pose …
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeDrawerTab === "graph" && showGraph && (
+              <div className="workspace__graph">
+                {graphStatus === "loading" && (
+                  <div className="workspace__viewer-empty">Generating rqt_graph…</div>
+                )}
+                {graphStatus === "error" && (
+                  <div className="workspace__viewer-empty">
+                    Failed to generate rqt_graph. Ensure graphviz is installed in the runner.
+                  </div>
+                )}
+                {graphStatus === "idle" && graphImage && (
+                  <img
+                    src={`data:image/png;base64,${graphImage}`}
+                    alt="rqt_graph"
+                    className="workspace__graph-img"
+                  />
+                )}
+                {graphStatus === "idle" && !graphImage && graphDot && (
+                  <pre className="workspace__graph-dot">{graphDot}</pre>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="workspace__zoom-overlay">
         </div>

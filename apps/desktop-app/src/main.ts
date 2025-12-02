@@ -429,8 +429,12 @@ function createWindow() {
       sandbox: false,
     },
   });
-  const prefs = mainWindow.webContents.getLastWebPreferences?.();
-  console.info("[window] webPreferences", prefs);
+  try {
+    const prefs = (mainWindow.webContents as any).getLastWebPreferences?.();
+    if (prefs) console.info("[window] webPreferences", prefs);
+  } catch {
+    // best effort debug info only
+  }
   mainWindow.maximize();
 
   if (process.env.NODE_ENV === "development") {

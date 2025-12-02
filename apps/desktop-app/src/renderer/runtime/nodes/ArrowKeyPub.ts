@@ -18,7 +18,6 @@ export class ArrowKeyPub implements NodeInstance {
   start() {
     if (this.handler) return;
 
-    this.ctx.log(`listening for arrow keys on topic "${this.topic}"`);
     this.handler = (e: KeyboardEvent) => {
       const map: Record<string, KeyDir> = {
         ArrowUp: "up",
@@ -31,7 +30,6 @@ export class ArrowKeyPub implements NodeInstance {
 
       const payload = { key: dir, ts: Date.now() };
       this.ctx.publish(this.topic, payload);
-      this.ctx.log(`pressed: ${dir}`);
     };
 
     window.addEventListener("keydown", this.handler);
@@ -40,7 +38,6 @@ export class ArrowKeyPub implements NodeInstance {
   stop() {
     if (!this.handler) return;
     window.removeEventListener("keydown", this.handler);
-    this.ctx.log(`stopped listening on "${this.topic}"`);
     this.handler = undefined;
   }
 }

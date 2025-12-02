@@ -4,6 +4,7 @@ type BridgeConfig = {
   url?: string;
   urls?: string[];
   retryMs?: number;
+  exposeGlobal?: boolean;
 };
 
 export class RosbridgeBridge implements NodeInstance {
@@ -15,6 +16,8 @@ export class RosbridgeBridge implements NodeInstance {
   private retryTimer?: ReturnType<typeof setTimeout>;
   private currentIndex = 0;
   private stopped = false;
+  private exposeGlobal: boolean;
+  private ownsGlobal = false;
 
   constructor(ctx: NodeContext, cfg: BridgeConfig = {}) {
     this.id = ctx.id;
@@ -26,11 +29,19 @@ export class RosbridgeBridge implements NodeInstance {
         ? [cfg.url]
         : ["ws://localhost:9090", "ws://127.0.0.1:9090"];
     this.retryMs = cfg.retryMs ?? 2500;
-    (globalThis as any).__rosbridge__ = this;
+    this.exposeGlobal = cfg.exposeGlobal ?? true;
+    if (this.exposeGlobal) {
+      (globalThis as any).__rosbridge__ = this;
+      this.ownsGlobal = true;
+    }
   }
 
   start() {
     this.stopped = false;
+    if (this.exposeGlobal && !this.ownsGlobal) {
+      (globalThis as any).__rosbridge__ = this;
+      this.ownsGlobal = true;
+    }
     if (this.ws && this.ws.readyState === WebSocket.OPEN) return;
     this.connectNext();
   }
@@ -55,8 +66,9 @@ export class RosbridgeBridge implements NodeInstance {
     }
     this.ws?.close();
     this.ws = undefined;
-    if ((globalThis as any).__rosbridge__ === this) {
+    if (this.exposeGlobal && this.ownsGlobal && (globalThis as any).__rosbridge__ === this) {
       delete (globalThis as any).__rosbridge__;
+      this.ownsGlobal = false;
     }
   }
 

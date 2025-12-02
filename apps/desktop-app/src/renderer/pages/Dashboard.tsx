@@ -108,26 +108,26 @@ const workspaceSeedTemplates: Array<{
   createNodes: () => WorkspaceDocument["nodes"];
 }> = [
   {
-    name: "ROS Workspace Starter",
+    name: "Turtlesim Teleop",
     meta: {
-      description: "Basic rosbridge, keyboard publisher, and console subscriber.",
-      tags: ["sample", "ros"],
+      description: "Arrow keys -> /turtle1/cmd_vel via rosbridge (start rosbridge + turtlesim in the runner).",
+      tags: ["sample", "ros", "turtlesim"],
     },
     createNodes: () => [
+      makeNode("ArrowKeyPub", "Arrow Key Publisher", { x: 260, y: 120 }, { topic: "keys/arrows" }),
       makeNode(
-        "RosbridgeBridge",
-        "Rosbridge",
-        { x: 140, y: 120 },
-        { urls: ["ws://localhost:9090", "ws://127.0.0.1:9090"], retryMs: 2500 }
+        "TurtleSimSub",
+        "Turtlesim Sub",
+        { x: 560, y: 120 },
+        {
+          inputTopic: "keys/arrows",
+          cmdVelTopic: "/turtle1/cmd_vel",
+          linearSpeed: 1.5,
+          angularSpeed: 3,
+          stopAfterMs: 160,
+        }
       ),
-      makeNode("ArrowKeyPub", "Arrow Key Publisher", { x: 380, y: 120 }, { topic: "keys/arrows" }),
-      makeNode("ConsoleSub", "Console Subscriber", { x: 620, y: 120 }, { topic: "keys/arrows" }),
-      makeNode(
-        "Forwarder",
-        "ROS Forwarder",
-        { x: 900, y: 120 },
-        { from: "keys/arrows", to: "/keys/arrows" }
-      ),
+      makeNode("ConsoleSub", "Console Subscriber", { x: 860, y: 120 }, { topic: "keys/arrows" }),
     ],
   },
 ];
