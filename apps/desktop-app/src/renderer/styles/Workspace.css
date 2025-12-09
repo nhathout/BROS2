@@ -175,6 +175,12 @@
   gap: 10px;
 }
 
+.workspace__ros-buttons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .workspace__ros-status {
   font-size: 12px;
   padding: 8px 12px;

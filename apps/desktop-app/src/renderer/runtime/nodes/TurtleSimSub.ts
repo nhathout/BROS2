@@ -15,6 +15,7 @@ type TurtleSimSubConfig = {
   stopAfterMs?: number;
   rosbridgeUrls?: string[];
   rosbridgeRetryMs?: number;
+  autoConnect?: boolean;
 };
 
 /** Subscribes to arrow key events and publishes geometry_msgs/Twist for turtlesim. */
@@ -32,6 +33,7 @@ export class TurtleSimSub implements NodeInstance {
   private ownsBridge = false;
   private bridgeUrls: string[];
   private bridgeRetryMs: number;
+  private autoConnect: boolean;
 
   constructor(ctx: NodeContext, cfg: TurtleSimSubConfig = {}) {
     this.id = ctx.id;
@@ -46,10 +48,15 @@ export class TurtleSimSub implements NodeInstance {
         ? [...cfg.rosbridgeUrls]
         : ["ws://localhost:9090", "ws://127.0.0.1:9090"];
     this.bridgeRetryMs = cfg.rosbridgeRetryMs ?? 2500;
+    this.autoConnect = cfg.autoConnect ?? true;
   }
 
   start() {
     if (this.handler) return;
+    if (!this.autoConnect) {
+      this.ctx.log("turtlesim subscriber paused until ROS is running");
+      return;
+    }
     this.ctx.log(
       `subscribing to "${this.inputTopic}" and publishing Twist to "${this.cmdVelTopic}"`
     );
@@ -95,6 +102,7 @@ export class TurtleSimSub implements NodeInstance {
   }
 
   private ensureBridge(): RosbridgeBridge | null {
+    if (!this.autoConnect) return null;
     if (this.bridge) return this.bridge;
 
     const existing = (globalThis as any).__rosbridge__;

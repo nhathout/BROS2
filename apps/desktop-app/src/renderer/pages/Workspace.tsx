@@ -30,6 +30,7 @@ import {
   FiMap,
   FiPower,
   FiPlay,
+  FiStopCircle,
   FiSave,
   FiTrash2,
   FiSun,
@@ -118,27 +119,6 @@ const paletteGroups: Array<{ title: string; items: PaletteItem[] }> = [
       },
     ],
   },
-  {
-    title: "ROS Transport",
-    items: [
-      {
-        id: "RosbridgeBridge",
-        label: "Rosbridge Bridge",
-        type: "RosbridgeBridge",
-        icon: FiMap,
-        description: "Connects to rosbridge and mirrors ROS publish/subscribe traffic (infrastructure).",
-        defaultMeta: { urls: ["ws://localhost:9090", "ws://127.0.0.1:9090"], retryMs: 2500 },
-      },
-      {
-        id: "Forwarder",
-        label: "ROS Forwarder",
-        type: "Forwarder",
-        icon: FiPlay,
-        description: "Forwards workspace bus messages into ROS topics.",
-        defaultMeta: { from: "keys/arrows", to: "/keys/arrows" },
-      },
-    ],
-  },
 ];
 
 const normalizePosition = (position?: WorkspaceNode["position"]): WorkspaceNode["position"] => {
@@ -221,7 +201,7 @@ const WorkspacePage: React.FC = () => {
   const [showGraph, setShowGraph] = useState(false);
   const [graphImage, setGraphImage] = useState<string | null>(null);
   const [graphDot, setGraphDot] = useState<string | null>(null);
-  const [graphStatus, setGraphStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [graphStatus, setGraphStatus] = useState<"idle" | "loading" | "error" | "empty">("idle");
   const [activeDrawerTab, setActiveDrawerTab] = useState<"console" | "viewer" | "graph">("console");
   const [consoleFeed, setConsoleFeed] = useState<
     Array<{ ts: number; topic: string; from: string; data: any }>
@@ -257,7 +237,10 @@ const WorkspacePage: React.FC = () => {
   const hasTurtlesimNode = useMemo(
     () =>
       workspaceNodes.some(
-        (node) => node.type === "TurtleSimSub" || node.type === "TurtleSimSubscriber"
+        (node) =>
+          node.type === "TurtleSimSub" ||
+          node.type === "TurtleSimSubscriber" ||
+          /turtle/i.test(node.type ?? "")
       ),
     [workspaceNodes]
   );
@@ -614,6 +597,7 @@ const WorkspacePage: React.FC = () => {
   useEffect(() => {
     const runtimeMap = runtimeNodesRef.current;
     const desired = new Map(workspaceNodes.map((node) => [node.id, node]));
+    const rosAwareTypes = new Set(["RosbridgeBridge", "TurtleSimSub", "TurtleSimSubscriber", "Forwarder"]);
 
     for (const id of Array.from(runtimeMap.keys())) {
       if (!desired.has(id)) {
@@ -623,7 +607,9 @@ const WorkspacePage: React.FC = () => {
     }
 
     for (const node of workspaceNodes) {
-      const metaSig = JSON.stringify(node.meta ?? {});
+      const metaSig = rosAwareTypes.has(node.type)
+        ? JSON.stringify({ ...(node.meta ?? {}), __rosState: rosState })
+        : JSON.stringify(node.meta ?? {});
       const existing = runtimeMap.get(node.id);
       if (existing && existing.type === node.type && existing.metaSig === metaSig) continue;
       if (existing) {
@@ -670,6 +656,13 @@ const WorkspacePage: React.FC = () => {
             ...config,
             urls,
             retryMs: config.retryMs ?? 2500,
+            autoConnect: rosState === "running",
+          };
+        }
+        if (node.type === "TurtleSimSub" || node.type === "TurtleSimSubscriber") {
+          config = {
+            ...config,
+            autoConnect: rosState === "running",
           };
         }
 
@@ -680,7 +673,7 @@ const WorkspacePage: React.FC = () => {
         console.error("[runtime] failed to start node", node.type, err);
       }
     }
-  }, [workspaceNodes]);
+  }, [workspaceNodes, rosState]);
 
   useEffect(
     () => () => {
@@ -752,19 +745,112 @@ const WorkspacePage: React.FC = () => {
       return;
     }
     setGraphStatus("loading");
+    try {
+      // Quick preflight so we can short-circuit with a friendly "empty graph" message.
+      const listRes = await window.runner.exec(
+        'bash -lc "source /opt/ros/humble/setup.bash && ros2 node list"'
+      );
+      if (listRes.code !== 0) {
+        throw new Error(listRes.stderr || listRes.stdout || "ros2 node list failed");
+      }
+      const nodes = (listRes.stdout || "").split("\n").map((s) => s.trim()).filter(Boolean);
+      if (!nodes.length) {
+        setGraphStatus("empty");
+        return;
+      }
+    } catch (err) {
+      console.error("[rqt_graph] preflight failed", err);
+      setGraphStatus("error");
+      return;
+    }
     const cmd =
-      'bash -lc "source /opt/ros/humble/setup.bash && export QT_QPA_PLATFORM=offscreen; if command -v rqt_graph >/dev/null 2>&1; then if command -v dot >/dev/null 2>&1; then rqt_graph --dot > /tmp/rqt_graph.dot && dot -Tpng /tmp/rqt_graph.dot -o /tmp/rqt_graph.png && base64 /tmp/rqt_graph.png; else rqt_graph --dot; fi; else echo rqt_graph missing >&2; exit 1; fi"';
+      'bash -lc "source /opt/ros/humble/setup.bash && export QT_QPA_PLATFORM=offscreen; if command -v rqt_graph >/dev/null 2>&1 && command -v dot >/dev/null 2>&1; then rqt_graph --dot > /tmp/rqt_graph.dot && dot -Tpng /tmp/rqt_graph.dot -o /tmp/rqt_graph.png && base64 /tmp/rqt_graph.png; fi"';
     try {
       const res = await window.runner.exec(cmd);
-      if (res.code !== 0) throw new Error(res.stderr || res.stdout || "rqt_graph failed");
-      const out = (res.stdout || "").trim();
-      if (!out) throw new Error("Empty rqt_graph output");
-      if (out.startsWith("digraph")) {
-        setGraphDot(out);
-      } else {
-        setGraphImage(out);
+      const png = (res.stdout || "").trim();
+      if (res.code === 0 && png) {
+        setGraphImage(png);
+        setGraphStatus("idle");
+        return;
       }
-      setGraphStatus("idle");
+      // Fallback: synthesize a dot graph using ros2 topic info.
+      const synth = await window.runner.exec(
+        String.raw`bash -lc "source /opt/ros/humble/setup.bash && python3 - <<'PY'
+import subprocess, shlex, sys, re, tempfile, os
+
+def sh(cmd):
+    return subprocess.run(cmd, shell=True, capture_output=True, text=True)
+
+list_topics = sh('ros2 topic list')
+if list_topics.returncode != 0:
+    sys.stderr.write(list_topics.stderr or list_topics.stdout or 'topic list failed')
+    sys.exit(1)
+
+topics = [t.strip() for t in list_topics.stdout.splitlines() if t.strip()]
+nodes = set()
+edges = []
+for topic in topics:
+    info = sh(f"ros2 topic info {shlex.quote(topic)} -v")
+    if info.returncode != 0:
+        continue
+    pubs = []
+    subs = []
+    section = None
+    for line in info.stdout.splitlines():
+        if line.startswith('Publisher count'):
+            section = 'pub'
+            continue
+        if line.startswith('Subscriber count'):
+            section = 'sub'
+            continue
+        m = re.match(r'^\\s*- (.+)$', line)
+        if not m:
+            continue
+        name = m.group(1).strip()
+        if section == 'pub':
+            pubs.append(name)
+        elif section == 'sub':
+            subs.append(name)
+    for p in pubs:
+        nodes.add(p)
+        edges.append((p, topic))
+    for s in subs:
+        nodes.add(s)
+        edges.append((topic, s))
+
+dot_lines = ['digraph ros2 {']
+for n in sorted(nodes):
+    safe = n.replace('"', '\\"')
+    dot_lines.append(f'  "{safe}";')
+for a, b in edges:
+    sa = a.replace('"', '\\"')
+    sb = b.replace('"', '\\"')
+    dot_lines.append(f'  "{sa}" -> "{sb}";')
+dot_lines.append('}')
+dot_content = '\n'.join(dot_lines)
+
+with tempfile.TemporaryDirectory() as td:
+    dot_path = os.path.join(td, 'graph.dot')
+    png_path = os.path.join(td, 'graph.png')
+    with open(dot_path, 'w') as f:
+        f.write(dot_content)
+    conv = sh(f"dot -Tpng {shlex.quote(dot_path)} -o {shlex.quote(png_path)}")
+    if conv.returncode != 0:
+        sys.stderr.write(conv.stderr or conv.stdout or 'dot failed')
+        sys.exit(1)
+    with open(png_path, 'rb') as f:
+        import base64
+        b64 = base64.b64encode(f.read()).decode('utf-8')
+        print(b64)
+PY"`
+      );
+      const synthOut = (synth.stdout || "").trim();
+      if (synth.code === 0 && synthOut) {
+        setGraphImage(synthOut);
+        setGraphStatus("idle");
+      } else {
+        throw new Error(res.stderr || res.stdout || synth.stderr || "rqt_graph failed");
+      }
     } catch (err) {
       console.error("[rqt_graph] failed", err);
       setGraphStatus("error");
@@ -800,6 +886,14 @@ const WorkspacePage: React.FC = () => {
       setRosMessage("window.runner is unavailable");
       return;
     }
+    const tailLog = async (path: string) => {
+      try {
+        const res = await window.runner.exec(`bash -lc "tail -n 80 ${path}"`);
+        return res.stdout || res.stderr || "";
+      } catch {
+        return "";
+      }
+    };
     setRosState("starting");
     setRosMessage(
       `Launching rosbridge${hasTurtlesimNode ? " + turtlesim" : ""}${
@@ -808,36 +902,87 @@ const WorkspacePage: React.FC = () => {
     );
     try {
       await window.runner.up(rosProjectName);
+      // Ensure no straggler rosbridge/turtlesim is holding 9090 in the container.
+      await window.runner.exec(
+        'bash -lc "pkill -f rosbridge_websocket || true; pkill -f turtlesim_node || true"'
+      );
+      await window.runner.exec(
+        'bash -lc "which fuser >/dev/null 2>&1 && fuser -k 9090/tcp || true"'
+      );
       setRosMessage("Starting rosbridge…");
       const bridgeRes = await window.runner.exec(
         'bash -lc "source /opt/ros/humble/setup.bash && nohup ros2 launch rosbridge_server rosbridge_websocket_launch.xml >/tmp/rosbridge.log 2>&1 & echo $!"'
       );
       if (bridgeRes.code !== 0) throw new Error(bridgeRes.stderr || bridgeRes.stdout);
+      setRosMessage("Waiting for rosbridge port 9090…");
+      const waitBridgeCmd = String.raw`bash -lc '
+if command -v nc >/dev/null 2>&1; then
+  for i in $(seq 1 40); do
+    nc -z 127.0.0.1 9090 && echo ready && exit 0
+    sleep 0.5
+  done
+  echo timeout >&2
+  exit 1
+else
+  for i in $(seq 1 40); do
+    (echo > /dev/tcp/127.0.0.1/9090) >/dev/null 2>&1 && echo ready && exit 0
+    sleep 0.5
+  done
+  echo timeout >&2
+  exit 1
+fi
+'`;
+      const waitBridge = await window.runner.exec(waitBridgeCmd);
+      if (waitBridge.code !== 0 || (waitBridge.stdout ?? "").includes("timeout")) {
+        throw new Error(waitBridge.stderr || waitBridge.stdout || "rosbridge wait failed");
+      }
+      setRosMessage("rosbridge ready on 9090");
       startedTurtlesimRef.current = false;
       if (hasTurtlesimNode) {
         setRosMessage("Starting turtlesim…");
         const turtleRes = await window.runner.exec(
           'bash -lc "source /opt/ros/humble/setup.bash && QT_QPA_PLATFORM=offscreen nohup ros2 run turtlesim turtlesim_node >/tmp/turtlesim.log 2>&1 & echo $!"'
         );
-        if (turtleRes.code !== 0) throw new Error(turtleRes.stderr || turtleRes.stdout);
+        if (turtleRes.code !== 0)
+          throw new Error(
+            turtleRes.stderr || turtleRes.stdout || "turtlesim_node failed to launch"
+          );
         startedTurtlesimRef.current = true;
+        setRosMessage("Waiting for /turtle1/pose…");
+        const waitTurtle = await window.runner.exec(
+          'bash -lc "source /opt/ros/humble/setup.bash && for i in $(seq 1 30); do ros2 topic list | grep -q /turtle1/pose && exit 0; sleep 0.5; done; echo timeout >&2; exit 1"'
+        );
+        if (waitTurtle.code !== 0) throw new Error(waitTurtle.stderr || waitTurtle.stdout);
+        setRosMessage("rosbridge + turtlesim launched");
+      } else {
+        setRosMessage("rosbridge launched (add turtlesim block to start it)");
       }
-      setRosMessage("rosbridge launched");
       const bridge = (globalThis as any).__rosbridge__;
       if (bridge?.subscribeRos) {
         bridge.subscribeRos("/turtle1/pose");
       }
       setRosState("running");
-      setRosMessage(
-        `rosbridge${hasTurtlesimNode ? " + turtlesim" : ""} running${
-          showGraph ? " (rqt ready)" : ""
-        }`
-      );
+      setRosMessage(`rosbridge + turtlesim running${showGraph ? " (rqt ready)" : ""}`);
       if (showGraph) void generateGraph();
     } catch (err) {
       console.error("[ros] start failed", err);
       setRosState("error");
-      setRosMessage("Failed to start ROS (check Docker/rosbridge)");
+      const msg =
+        err instanceof Error
+          ? err.message
+          : typeof err === "string"
+          ? err
+          : "Unknown failure";
+      setRosMessage(`Failed to start ROS: ${msg || "unknown error"}`);
+      if (startedTurtlesimRef.current && window.runner?.exec) {
+        void tailLog("/tmp/turtlesim.log").then((log) => {
+          if (log) console.warn("[turtlesim.log tail]", log);
+        });
+      } else {
+        void tailLog("/tmp/rosbridge.log").then((log) => {
+          if (log) console.warn("[rosbridge.log tail]", log);
+        });
+      }
     }
   }, [edges, generateGraph, hasTurtlesimNode, rosProjectName, rosState, showGraph, workspaceNodes]);
 
@@ -958,18 +1103,32 @@ const WorkspacePage: React.FC = () => {
             </button>
             <div className="workspace__ros">
               <div className={`workspace__ros-status ${rosStatusClass}`}>{rosMessage}</div>
-              <button
-                type="button"
-                className={`workspace__button ${
-                  rosState === "running" ? "workspace__button--danger" : "workspace__button--ros"
-                }`}
-                onClick={rosState === "running" ? stopRos : startRos}
-                disabled={rosState === "starting" || rosState === "stopping"}
-                title="Manage rosbridge + turtlesim inside the runner"
-              >
-                <FiPower size={15} />
-                {rosButtonLabel}
-              </button>
+              <div className="workspace__ros-buttons">
+                <button
+                  type="button"
+                  className={`workspace__button ${
+                    rosState === "running" ? "workspace__button--danger" : "workspace__button--ros"
+                  }`}
+                  onClick={rosState === "running" ? stopRos : startRos}
+                  disabled={rosState === "starting" || rosState === "stopping"}
+                  title="Manage rosbridge + turtlesim inside the runner"
+                >
+                  <FiPower size={15} />
+                  {rosButtonLabel}
+                </button>
+                {(rosState === "running" || rosState === "starting") && (
+                  <button
+                    type="button"
+                    className="workspace__button workspace__button--danger"
+                    onClick={stopRos}
+                    disabled={rosState === "stopping"}
+                    title="Stop ROS background processes"
+                  >
+                    <FiStopCircle size={15} />
+                    Stop
+                  </button>
+                )}
+              </div>
             </div>
             <button
               type="button"
@@ -1285,6 +1444,11 @@ const WorkspacePage: React.FC = () => {
               <div className="workspace__graph">
                 {graphStatus === "loading" && (
                   <div className="workspace__viewer-empty">Generating rqt_graph…</div>
+                )}
+                {graphStatus === "empty" && (
+                  <div className="workspace__viewer-empty">
+                    The ROS graph is empty. Start nodes before generating rqt_graph.
+                  </div>
                 )}
                 {graphStatus === "error" && (
                   <div className="workspace__viewer-empty">

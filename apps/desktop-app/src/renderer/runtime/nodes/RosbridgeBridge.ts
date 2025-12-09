@@ -5,6 +5,7 @@ type BridgeConfig = {
   urls?: string[];
   retryMs?: number;
   exposeGlobal?: boolean;
+  autoConnect?: boolean;
 };
 
 export class RosbridgeBridge implements NodeInstance {
@@ -18,6 +19,7 @@ export class RosbridgeBridge implements NodeInstance {
   private stopped = false;
   private exposeGlobal: boolean;
   private ownsGlobal = false;
+  private autoConnect: boolean;
 
   constructor(ctx: NodeContext, cfg: BridgeConfig = {}) {
     this.id = ctx.id;
@@ -30,6 +32,7 @@ export class RosbridgeBridge implements NodeInstance {
         : ["ws://localhost:9090", "ws://127.0.0.1:9090"];
     this.retryMs = cfg.retryMs ?? 2500;
     this.exposeGlobal = cfg.exposeGlobal ?? true;
+    this.autoConnect = cfg.autoConnect ?? true;
     if (this.exposeGlobal) {
       (globalThis as any).__rosbridge__ = this;
       this.ownsGlobal = true;
@@ -41,6 +44,10 @@ export class RosbridgeBridge implements NodeInstance {
     if (this.exposeGlobal && !this.ownsGlobal) {
       (globalThis as any).__rosbridge__ = this;
       this.ownsGlobal = true;
+    }
+    if (!this.autoConnect) {
+      this.ctx.log("rosbridge connection paused until ROS is running");
+      return;
     }
     if (this.ws && this.ws.readyState === WebSocket.OPEN) return;
     this.connectNext();
