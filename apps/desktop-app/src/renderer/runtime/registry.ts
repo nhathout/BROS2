@@ -147,9 +147,9 @@ class Runtime {
       publish: (topic, data) => {
         const evt: Publish = { topic, data, from: nodeId, ts: Date.now() };
         this.bus.emit(topic, evt);
-        console.log(`[publish] ${topic} <-`, data);
+        this.bus.emit("__all__", evt);
       },
-      log: (msg) => console.log(`[node:${nodeId}] ${msg}`),
+      log: (_msg) => {},
     };
     const inst = factory(ctx, config);
     this.nodes.set(nodeId, inst);
@@ -181,10 +181,14 @@ import { ArrowKeyPub } from "./nodes/ArrowKeyPub";
 import { ConsoleSub } from "./nodes/ConsoleSub";
 import { Forwarder } from "./nodes/Forwarder";
 import { RosbridgeBridge } from "./nodes/RosbridgeBridge";
+import { TurtleSimSub } from "./nodes/TurtleSimSub";
 
 const baseRegistry: Record<string, Factory> = {
   ArrowKeyPub: (ctx, config) => new ArrowKeyPub(ctx, config),
   ConsoleSub: (ctx, config) => new ConsoleSub(ctx, config),
+  TurtleSimSub: (ctx, config) => new TurtleSimSub(ctx, config),
+  // backwards compatibility for older workspaces
+  TurtleSimSubscriber: (ctx, config) => new TurtleSimSub(ctx, config),
 };
 
 export const registry: Record<string, Factory> = {

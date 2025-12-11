@@ -5,6 +5,8 @@ RUN apt-get update && apt-get install -y \
     python3-colcon-common-extensions python3-rosdep \
     ros-humble-rosbridge-server \
     ros-humble-turtlesim \
+    ros-humble-rqt-graph \
+    graphviz \
   && rm -rf /var/lib/apt/lists/*
 
 # dev user (optional)

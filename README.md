@@ -59,12 +59,13 @@ docker ps
    pnpm --filter ./apps/desktop-app dev
    ```
 
-6. In Electron DevTools, bring up ROS 2 + rosbridge when you need it:
+6. In Electron DevTools, bring up ROS 2 + rosbridge when you need it (backgrounded so the promise resolves). In the Workspace header you can also click **Start ROS** to run these for you:
 
-   ```js
-   await window.runner.up("hello_ros");
-   await window.runner.exec('bash -lc "source /opt/ros/humble/setup.bash && ros2 launch rosbridge_server rosbridge_websocket_launch.xml"');
-   ```
+```js
+await window.runner.up("turtlesim"); 
+await window.runner.exec('bash -lc "source /opt/ros/humble/setup.bash && nohup ros2 launch rosbridge_server rosbridge_websocket_launch.xml >/tmp/rosbridge.log 2>&1 & echo $!"');
+await window.runner.exec('bash -lc "source /opt/ros/humble/setup.bash && nohup ros2 run turtlesim turtlesim_node >/tmp/turtlesim.log 2>&1 & echo $!"'); 
+```
 
 Skip to the sections below for the full workflow details and tests.
 
@@ -114,6 +115,7 @@ It launches the packaged app once everything compiles. If the script adds an `nv
    ```bash
    pnpm --filter ./apps/desktop-app ros:build-image
    ```
+   (This rebuild pulls rosbridge, turtlesim, rqt_graph, and graphviz into the runner image.)
 
 5. **Emit the desktop main + preload bundle** (run from the repo root).  
 _Do not skip this step after running `pnpm -r clean`; it regenerates the preload bridges and the runtime registry that power `window.runtime`._
@@ -156,6 +158,8 @@ window.ir.build(graph: BlockGraph): Promise<{ ir: IR; issues: string[] }>;
 window.ir.validate(ir: IR): Promise<{ errors: Issue[]; warnings: Issue[] }>;
 ```
 
+Renderer runtime nodes (`ArrowKeyPub`, `ConsoleSub`, `TurtleSimSub`, etc.) live in the renderer process. They forward data over rosbridge but do not yet spawn real ROS 2 processes, so tools like `rqt_graph` will show `rosbridge_websocket` as the publisher until codegen/launch support is added.
+
 ### Runner sanity check (DevTools)
 
 With Docker running and the app in dev mode, open DevTools (`View → Toggle Developer Tools`) and run:
@@ -184,6 +188,34 @@ const { errors, warnings } = await window.ir.validate(ir);
 console.log({ issues, errors, warnings });
 ```
 
+### Turtlesim teleop (renderer runtime → ROS 2)
+
+Start rosbridge and turtlesim inside the runner, then wire arrow keys to `/turtle1/cmd_vel`:
+
+```js
+await window.runner.up("turtlesim");
+await window.runner.exec('bash -lc "source /opt/ros/humble/setup.bash && nohup ros2 launch rosbridge_server rosbridge_websocket_launch.xml >/tmp/rosbridge.log 2>&1 & echo $!"');
+await window.runner.exec('bash -lc "source /opt/ros/humble/setup.bash && nohup ros2 run turtlesim turtlesim_node >/tmp/turtlesim.log 2>&1 & echo $!"');
+
+const pubId = window.runtime.create("ArrowKeyPub", { topic: "keys/arrows" });
+const turtleId = window.runtime.create("TurtleSimSub", {
+  inputTopic: "keys/arrows",
+  cmdVelTopic: "/turtle1/cmd_vel",
+});
+window.runtime.start(pubId);
+window.runtime.start(turtleId);
+// Optional: echo the bus traffic
+const logId = window.runtime.create("ConsoleSub", { topic: "keys/arrows" });
+window.runtime.start(logId);
+```
+
+Press arrow keys with the Electron window focused to drive the turtle. Stop the background processes with:
+
+```js
+await window.runner.exec('bash -lc "pkill -f rosbridge_websocket || true; pkill -f turtlesim_node || true"');
+await window.runner.down();
+```
+
 ### Runtime bridge smoke test (ArrowKeyPub + ConsoleSub)
 
 The preload now exposes `window.runtime` alongside the runner and IR bridges. With the dev app running:
@@ -207,17 +239,17 @@ If `window.runtime` is missing, run `pnpm --filter ./apps/desktop-app build:main
 ### API cheatsheet (DevTools)
 
 - `window.runner.up(projectName)` – start/update the Docker container `bros2_<projectName>` backed by `bros2/ros2-humble:latest`.
-- `window.runner.exec(command)` – run commands like `ros2 topic list` or launching rosbridge:
+- `window.runner.exec(command)` – run commands like `ros2 topic list` or launch background services:
 
   ```js
-  await window.runner.exec('bash -lc "source /opt/ros/humble/setup.bash && ros2 launch rosbridge_server rosbridge_websocket_launch.xml"');
+  await window.runner.exec('bash -lc "source /opt/ros/humble/setup.bash && nohup ros2 launch rosbridge_server rosbridge_websocket_launch.xml >/tmp/rosbridge.log 2>&1 & echo $!"');
   ```
 
 - `window.runner.down()` – stop/remove the ROS 2 container.
-- `window.runtime.create(type, config)` – instantiate nodes registered in `apps/desktop-app/src/renderer/runtime/registry.ts` (`ArrowKeyPub`, `ConsoleSub`, `RosbridgeBridge`, `Forwarder`).
+- `window.runtime.create(type, config)` – instantiate nodes registered in `apps/desktop-app/src/renderer/runtime/registry.ts` (`ArrowKeyPub`, `ConsoleSub`, `TurtleSimSub`, plus plumbing nodes `RosbridgeBridge` and `Forwarder`).
 - `window.runtime.start(id)`, `window.runtime.stop(id)`, `window.runtime.stopAll()` – control renderer-runtime nodes.
 - `window.ir.build(...)` / `window.ir.validate(...)` – convert block graphs to IR and run validators.
-- `globalThis.__rosbridge__` – dev-only handle populated by `RosbridgeBridge` with helpers like `publishRos(topic, msg)`.
+- `globalThis.__rosbridge__` – dev-only handle populated by rosbridge-aware nodes with helpers like `publishRos(topic, msg)`.
 
 ## Cleaning & Full Rebuild
 

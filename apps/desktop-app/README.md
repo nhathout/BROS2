@@ -8,4 +8,10 @@ Build the local ROS 2 image once before launching the desktop app:
 pnpm --filter ./apps/desktop-app ros:build-image
 ```
 
-After the app is running (`pnpm -r build` then `pnpm --filter ./apps/desktop-app dev`), open DevTools and execute the runner/runtime snippet from the acceptance checklist to spin up `window.runner`, create a `RosbridgeBridge`, start `ArrowKeyPub`, add a `Forwarder`, and interact with ROS 2 topics.
+After the app is running (`pnpm -r build` then `pnpm --filter ./apps/desktop-app dev`), open DevTools and use the snippets in the root README to:
+
+- start the runner container
+- launch rosbridge (and optionally turtlesim) in the background
+- create `ArrowKeyPub` + `TurtleSimSub` in `window.runtime` to drive `/turtle1/cmd_vel`
+
+Tip: in the Workspace header, use the **Start ROS** button to run the same rosbridge+turtlesim setup without opening DevTools.
